@@ -32,8 +32,9 @@ def environment_report(log=print):
     from openmm import Platform
     from .omm_setup import available_platforms, plugin_failures, rocm_hint
 
-    log("OpenMM %s, Python %s on %s" % (openmm.__version__, host_platform.python_version(),
-                                        host_platform.node()))
+    from . import __version__
+    log("sumd-openmm %s, OpenMM %s, Python %s on %s" % (
+        __version__, openmm.__version__, host_platform.python_version(), host_platform.node()))
     log("plugin directory: %s" % Platform.getDefaultPluginsDirectory())
     names = available_platforms()
     for name in names:

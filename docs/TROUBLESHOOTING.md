@@ -47,8 +47,9 @@ internet access. Install with `pip` and `conda` on a login node; the
 environment on a shared file system is immediately usable on the
 compute nodes.
 
-**pip keeps the old version.** A new commit has the same version
-number, so reinstall explicitly:
+**pip keeps the old version.** `sumd-openmm --version` shows the
+installed version; the [changelog](../CHANGELOG.md) lists the releases.
+Reinstall explicitly:
 
 ```bash
 pip install --no-cache-dir --force-reinstall --no-deps \

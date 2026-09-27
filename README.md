@@ -62,6 +62,10 @@ On HPE Cray systems (Dardel, LUMI) use `MPICC="cc -shared"`.
 `--no-binary mpi4py` makes pip compile mpi4py instead of using a prebuilt
 copy linked to another MPI.
 
+`sumd-openmm --version` prints the installed version. To install a
+particular release, replace `.git` with `.git@v0.2.0` (any tag listed in
+the [changelog](CHANGELOG.md)).
+
 For a local checkout, `conda env create -f environment.yml` followed by
 `python -m pip install -e .`. VMD-like selections need `MDAnalysis`. AMD
 GPUs need a ROCm 6 runtime; [parallel use](docs/PARALLEL.md) gives a
@@ -166,6 +170,7 @@ reports the atoms each selection resolves to.
 [validation](docs/VALIDATION.md) ·
 [setup](docs/SETUP_LAYER.md) ·
 [troubleshooting](docs/TROUBLESHOOTING.md) ·
+[changelog](CHANGELOG.md) ·
 [examples](examples)
 
 [`examples/ligand_binding_amber`](examples/ligand_binding_amber) is a
