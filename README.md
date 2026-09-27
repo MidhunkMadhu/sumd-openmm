@@ -116,6 +116,8 @@ For several walkers, set `walkers` and `walker_score`
 separate GPUs.
 
 Distances are in ångström, angles in degrees and times in picoseconds.
+The [user guide](docs/USER_GUIDE.md) explains every key of the input
+file.
 
 ## Collective variables
 
@@ -155,7 +157,8 @@ reports the atoms each selection resolves to.
 
 ## Documentation
 
-[Configuration](docs/CONFIG_REFERENCE.md) ·
+[User guide](docs/USER_GUIDE.md) ·
+[configuration](docs/CONFIG_REFERENCE.md) ·
 [algorithm](docs/ALGORITHM.md) ·
 [equilibration](docs/EQUILIBRATION.md) ·
 [outputs](docs/OUTPUTS.md) ·

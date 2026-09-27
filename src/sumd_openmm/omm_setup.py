@@ -324,6 +324,8 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                 break
 
     if inputs.pcouple == "yes":
+        if inputs.p_type not in ("isotropic", "membrane"):
+            raise ValueError("p_type must be isotropic or membrane, not %s" % inputs.p_type)
         system = prod.barostat(system, inputs)
 
     if fftype == "CHARMM" and inputs.rest == "yes":

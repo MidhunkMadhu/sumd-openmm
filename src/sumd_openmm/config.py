@@ -158,8 +158,8 @@ _CHOICES = {
 }
 _MD_KEYS = set("""force_field system_xml topology_file coordinate_file toppar_file
 gmx_include dt temp fric_coeff pcouple p_type cons coulomb vdw r_on r_off platform
-cuda_precision precision genvel continuation rewrap_coordinates reset_step_and_time lj_lrc
-e14scale rest restraint_file restraint_k nstep ewald_Tol barostat_freq pressure p_ref p_freq
+cuda_precision precision genvel rewrap_coordinates reset_step_and_time lj_lrc
+e14scale rest nstep ewald_Tol p_ref p_freq
 p_XYMode p_ZMode p_tens nstout nstdcd""".split())
 
 

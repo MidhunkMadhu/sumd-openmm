@@ -10,8 +10,9 @@ Its `force_field`, `topology_file`, `coordinate_file`, `toppar_file`,
 `gmx_include`, `dt`, `temp`, `fric_coeff`, `pcouple`, `p_type`,
 `cons`, `coulomb`, `vdw`, `r_on`, `r_off`, `platform`,
 `cuda_precision`, `genvel`, `continuation`, `rewrap_coordinates`,
-`reset_step_and_time`, `lj_lrc`, `e14scale` and restraint keys
-retain their MD_openmm meaning. See [setup](SETUP_LAYER.md).
+`reset_step_and_time`, `lj_lrc` and `e14scale` keep their MD_openmm
+meaning; the [user guide](USER_GUIDE.md) explains each with its default.
+See also [setup](SETUP_LAYER.md).
 
 `platform` is `auto`, `CUDA`, `HIP`, `OpenCL`, `CPU` or `Reference`.
 `auto` takes the fastest available. A GPU platform that is not available

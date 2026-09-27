@@ -119,6 +119,23 @@ tasks per node (`--ntasks-per-node` equal to `--gpus-per-node`).
 
 ## Running
 
+**`Missing required key in input file: dt`** (or `topology_file`,
+`coordinate_file`). The key has no default; the
+[user guide](USER_GUIDE.md) lists every key and its default.
+
+**`UserWarning: unknown input key <key>`.** The key is misspelt or not
+used by sumd-openmm, so it has no effect. Check the spelling against
+the [user guide](USER_GUIDE.md).
+
+**`p_type must be isotropic or membrane`.** Only these two barostats are
+available; use `isotropic` for soluble systems and `membrane` for
+bilayers.
+
+**`No velocities found in: …` / `genvel = no was requested, so the run
+cannot start without velocities`.** The coordinate file holds positions only (for example a PDB or a
+minimized structure). Set `genvel = yes` to draw velocities at `temp`, or
+start from a restart file of an equilibration.
+
 **`output_dir exists; choose another or use --overwrite`.** The output
 folder holds a previous run. Choose another `output_dir`, or add
 `--overwrite` to replace it. The output of `--dry-run` is replaced
