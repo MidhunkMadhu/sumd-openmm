@@ -105,10 +105,4 @@ In [`examples/gpu_node.slurm`](../examples/gpu_node.slurm) use
 
 ### Common errors
 
-| Message | Cause and fix |
-| --- | --- |
-| `libhiprtc.so.6: cannot open shared object file` | ROCm 7 is loaded; `module load rocm/6.4.4` |
-| `libcuda.so.1: cannot open shared object file` | Normal on AMD nodes; the CUDA platform is not used |
-| `Run 'conda init' before 'conda activate'` | Batch jobs do not read `~/.bashrc`; `source <conda>/etc/profile.d/conda.sh` first |
-| `parallel = mpi needs mpi4py` | Install mpi4py as above |
-| Every rank reports size 1 (`c.size` is 1) | mpi4py is not built against Cray MPICH; rebuild it as above |
+See [troubleshooting](TROUBLESHOOTING.md).

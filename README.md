@@ -57,7 +57,9 @@ job script and tested versions for Dardel.
 
 `sumd-openmm --test` lists the OpenMM platforms available, checks that
 they compute the same forces, and runs two SuMD cycles of a built-in
-system.
+system. [Troubleshooting](docs/TROUBLESHOOTING.md) covers common
+installation and cluster problems: ROCm versions, mpi4py, conda in batch
+jobs and others.
 
 ## Quick start
 
@@ -148,6 +150,7 @@ reports the atoms each selection resolves to.
 [parallel use and GPUs](docs/PARALLEL.md) ·
 [validation](docs/VALIDATION.md) ·
 [setup](docs/SETUP_LAYER.md) ·
+[troubleshooting](docs/TROUBLESHOOTING.md) ·
 [examples](examples)
 
 [`examples/ligand_binding_amber`](examples/ligand_binding_amber) is a
