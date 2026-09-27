@@ -23,9 +23,11 @@ and cluster problems.
    `max_cycles` cycles, or when a file named `STOP` appears in
    `output_dir`.
 
-The accepted windows, joined in order, form the trajectory
-`sumd_traj.dcd`. Every accepted state is saved, so any point of the path
-can seed further simulations.
+Each kept window ends in an **AcceptedStep**: its coordinates, velocities
+and box are saved, and the next cycle starts from it. AcceptedStep 0 is the
+starting structure. The kept windows, joined in order, form the
+trajectory `sumd_traj.dcd`, and every AcceptedStep can seed further
+simulations.
 
 ## Reading the progress log
 
@@ -35,21 +37,24 @@ one line per cycle:
 
 ```
 metric ligand_rmsd (rmsd_displacement, supervise, decrease to 2): a = :314&!@H= -> 27 atoms in P0G314; fit = :1-313@CA -> 313 atoms in ASP1..CYS313 (313 residues); reference ref.pdb; initial 32.25
-cycle 7/100 from node 6: walker w3 of 8 accepted -> node 7 | ligand_rmsd 28.41 A (-0.60)
+cycle 7/100 from AcceptedStep 6: walker w3 of 8 accepted -> AcceptedStep 7 | ligand_rmsd 28.41 A (-0.60)
+cycle 8/100 from AcceptedStep 7: all walkers rejected, best w5 (1 of 8 retries from AcceptedStep 7 used) | ligand_rmsd 28.77 A (+0.36)
 ```
 
 | Part | Meaning |
 | --- | --- |
 | `cycle 7/100` | Cycle number and `max_cycles` |
-| `from node 6` | Saved state the windows started from |
-| `walker w3 of 8 accepted -> node 7` | Walker whose window was kept (`w3` matches the `_w3` window files and the `walker` column of `nodes.csv`) and the new state it produced. `converged` when the target is reached; `rejected` with the retry count when no window is kept |
+| `from AcceptedStep 6` | AcceptedStep the windows started from |
+| `walker w3 of 8 accepted -> AcceptedStep 7` | Walker whose window was kept (`w3` matches the `_w3` window files and the `walker` columns of the tables) and the AcceptedStep it produced; `converged` when the target is reached |
+| `all walkers rejected, best w5 (1 of 8 retries from AcceptedStep 7 used)` | No window was kept; the next cycle starts again from AcceptedStep 7. After `max_retries_per_parent` (8) rejections from one step, `on_retry_exhaustion` applies |
 | `ligand_rmsd 28.41 A (-0.60)` | Every metric at the end of the kept window, and its change from the starting state |
 
 With several walkers and the default `walker_acceptance = always`, every
 cycle is accepted: the best walker is always continued, even when the
 metric moved the wrong way. Progress shows in the metric values.
-`nodes.csv` holds the same values for every saved state, and
-`windows.jsonl` the values of every walker's window.
+`accepted_steps.csv` holds the metric values of every AcceptedStep,
+`windows.csv` those of every window of every walker, kept or not, and
+`cv_samples.csv` every sample along every window ([outputs](OUTPUTS.md)).
 
 ## Workflow
 
@@ -63,7 +68,7 @@ sumd-inspect sumd_run            # audit the finished run
 | Option | Effect |
 | --- | --- |
 | `--dry-run` | Builds the system and reports what every selection matched and each metric's initial value; no dynamics. A following run replaces its output |
-| `--test` | Two cycles of ten samples in `<output_dir>_test`, then checks of the saved states and trajectories and the simulation speed. Without an input file, checks the OpenMM installation on a built-in system |
+| `--test` | Two cycles of ten samples in `<output_dir>_test`, then checks of the AcceptedSteps and trajectories and the simulation speed. Without an input file, checks the OpenMM installation on a built-in system |
 | `--overwrite` | Replaces an existing `output_dir` |
 | `--version` | Prints the version |
 
@@ -156,7 +161,7 @@ See [equilibration](EQUILIBRATION.md).
 | `require_significant_slope` | `no` | `yes` accepts a window only if its slope exceeds twice its standard error |
 | `retry_velocities` | `auto` | Velocities for a repeated window: `auto` draws new ones for single-walker SuMD and keeps the selected walker's for multiple walkers; `reassign` always draws new ones; `keep` never does |
 | `max_retries_per_parent` | `8` | Rejections allowed from one state before `on_retry_exhaustion` applies |
-| `on_retry_exhaustion` | `accept_best` | `accept_best`: accept the best rejected attempt and continue from it; `step_back`: return to the previous accepted state |
+| `on_retry_exhaustion` | `accept_best` | `accept_best`: keep the best rejected window and continue from it; `step_back`: return to the previous AcceptedStep |
 | `random_seed` | random | Seed of velocities and thermostat noise, recorded in `run_summary.json`. GPU arithmetic is not bit-for-bit reproducible, so reruns agree statistically, not exactly |
 | `method` | `cMD` | Conventional MD; the only method available |
 
@@ -224,7 +229,7 @@ atoms stands for its centre of geometry, except in `mindist` and
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `seeding` | `chain` | `chain`: each cycle starts from the last accepted state. `stratified`: each cycle starts from a saved state chosen to cover bins of the stratified metrics near the most advanced progress |
+| `seeding` | `chain` | `chain`: each cycle starts from the last AcceptedStep. `stratified`: each cycle starts from an AcceptedStep chosen to cover bins of the stratified metrics near the most advanced progress |
 | `band_width` | `1.0` | Width of the progress bands, in units of the supervised metric |
 | `pool_per_cell` | `20` | States kept per band and bin |
 | `frontier_bands` | `1` | Bands behind the most advanced one that may still be chosen |
@@ -246,6 +251,7 @@ See [parallel use](PARALLEL.md).
 | `output_dir` | `sumd_run` | Folder of all results |
 | `dcd_stride` | `1` | Trajectory frames kept: every Nth metric sample (must divide the samples per window) |
 | `keep_rejected_dcd` | `no` | `yes` keeps trajectories of rejected windows |
-| `restore_check` | `yes` | Compares the energy of each restored state with the saved value |
+| `restore_check` | `yes` | Compares the energy after each restart from an AcceptedStep with the saved value |
+| `write_cv_samples` | `yes` | Writes every metric sample of every window to `cv_samples.csv` |
 
 The files are described in [outputs](OUTPUTS.md).

@@ -8,4 +8,4 @@ Command line:  sumd-openmm run.inp [--dry-run | --test]   (or python -m sumd_ope
 Importing the package does not import OpenMM; only building a simulation does.
 """
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"

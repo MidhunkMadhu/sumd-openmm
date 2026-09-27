@@ -196,6 +196,7 @@ class SumdConfig:
     equilibration_dir: str = "equilibration"
     dcd_stride: int = 1
     keep_rejected_dcd: bool = False
+    write_cv_samples: bool = True
     restore_check: bool = True
 
     @classmethod
@@ -214,7 +215,7 @@ class SumdConfig:
             setattr(c, key, float(cfg.get(key, getattr(c, key))))
         for key in ("pool_per_cell", "frontier_bands", "max_cycles", "max_retries_per_parent", "dcd_stride"):
             setattr(c, key, int(cfg.get(key, getattr(c, key))))
-        for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope"):
+        for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope", "write_cv_samples"):
             if key in cfg:
                 setattr(c, key, _bool(cfg[key], key))
         for key in ("output_dir", "gpu_devices", "charmm_gui_dir", "equilibration_dir"):

@@ -201,20 +201,20 @@ def audit(outdir, inspect=None, log=print):
         log("test speed: %.1f ns/day per walker, including CV sampling every %g ps"
             % (simulated / wall * 86.4, summary["sumd_config"]["cv_sample_ps"]))
     if report.get("max_abs_restore_dE_kJmol") is not None:
-        log("largest energy change on restoring a saved state: %.3g kJ/mol"
+        log("largest energy change on restarting from an AcceptedStep: %.3g kJ/mol"
             % report["max_abs_restore_dE_kJmol"])
     log("accepted windows: %d of %d" % (report["windows_committed"], report["windows_simulated"]))
     mismatch = report["max_dcd_vs_state_mismatch_A"]
     identical = report["final_traj_identical_to_path_windows"]
     checks = {
         "windows simulated": report["windows_simulated"] > 0,
-        "final state written": os.path.exists(os.path.join(outdir, "final_state.xml")),
+        "final structure written": os.path.exists(os.path.join(outdir, "final_state.xml")),
     }
     # Both cycles may be rejected; then there is no accepted window to compare.
     if mismatch is not None:
-        checks["DCD frames match saved states"] = mismatch < 1e-3
+        checks["trajectory frames match AcceptedSteps"] = mismatch < 1e-3
     if identical is not None:
-        checks["final trajectory matches the accepted path"] = identical
+        checks["final trajectory matches the AcceptedSteps"] = identical
     for name, good in checks.items():
         log("check %-45s %s" % (name, "ok" if good else "FAILED"))
     return all(checks.values())

@@ -34,11 +34,11 @@ sumd-openmm implements both methods as published, and adds:
 - walkers on several GPUs, on one node or across nodes, with MPI, on
   NVIDIA (CUDA) or AMD (HIP) GPUs;
 - a test mode that checks the installation and a short run of the real
-  system, and an audit of trajectories and saved states after a run.
+  system, and an audit of trajectories and saved AcceptedSteps after a run.
 
 SuMD accepts or rejects windows but never changes the dynamics, so its
-trajectories describe pathways, not rates or free energies. Saved states
-can seed unbiased simulations for those.
+trajectories describe pathways, not rates or free energies. The saved
+AcceptedSteps can seed unbiased simulations for those.
 
 ## Install
 

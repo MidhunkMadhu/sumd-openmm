@@ -149,9 +149,9 @@ progress line; `walker_acceptance = sumd` repeats a cycle whose best
 walker made no progress.
 
 **Where are the values of the walkers that were not kept?** Progress
-lines show the kept walker only. `windows.jsonl` in `output_dir` has one
-record per window with every metric sampled along it (`metric_series`)
-and its final values (`metric_final`); `sumd-inspect` summarizes them.
+lines show the kept walker only. `windows.csv` in `output_dir` has one
+row per window of every walker with the final value of every metric, and
+`cv_samples.csv` every sample along every window.
 
 **The run is much slower than the `--test` speed of the built-in
 system.** Metrics are computed on the CPU from coordinates copied off

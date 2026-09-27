@@ -26,7 +26,7 @@ def main(out):
     scfg.resolve_walkers(comm.Get_size())
 
     if comm.rank == 0:
-        for d in ("states", "windows/accepted", "windows/tmp", "windows/rejected"):
+        for d in ("accepted_steps", "windows/accepted", "windows/tmp", "windows/rejected"):
             os.makedirs(os.path.join(out, d), exist_ok=True)
     comm.barrier()
 

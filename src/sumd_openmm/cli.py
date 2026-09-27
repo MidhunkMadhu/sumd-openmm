@@ -36,6 +36,10 @@ def _json(value):
     raise TypeError(type(value))
 
 
+def _round(value, digits=4):
+    return None if value is None or not np.isfinite(value) else round(float(value), digits)
+
+
 def _finite(value):
     return float(value) if value is not None and np.isfinite(value) else None
 
@@ -45,16 +49,30 @@ def _write_json(path, payload):
         json.dump(payload, fh, indent=2, default=_json)
 
 
+def _table(outdir, name, fields):
+    handle = open(os.path.join(outdir, name), "w", newline="", buffering=1)
+    writer = csv.DictWriter(handle, fieldnames=fields)
+    writer.writeheader()
+    return handle, writer
+
+
 class RunLog:
-    def __init__(self, outdir, names):
+    """progress.log, windows.jsonl and the three CSV tables of a run."""
+
+    def __init__(self, outdir, names, samples=True):
+        self.names = names
         self.progress = open(os.path.join(outdir, "progress.log"), "w", buffering=1)
         self.windows = open(os.path.join(outdir, "windows.jsonl"), "w", buffering=1)
-        self.nodes = open(os.path.join(outdir, "nodes.csv"), "w", newline="", buffering=1)
-        self.fields = (["node_id", "parent_id", "cycle", "walker"] + names +
-                       ["band", "cell", "time_ps", "step", "epot_kJmol",
-                        "reason", "dcd", "state_xml"])
-        self.writer = csv.DictWriter(self.nodes, fieldnames=self.fields)
-        self.writer.writeheader()
+        self.steps, self.step_rows = _table(outdir, "accepted_steps.csv",
+            ["accepted_step", "parent_accepted_step", "cycle", "walker"] + names +
+            ["time_ps", "md_step", "epot_kJmol", "reason", "trajectory", "restart_file", "band", "cell"])
+        self.window_table, self.window_rows = _table(outdir, "windows.csv",
+            ["cycle", "walker", "start_accepted_step", "outcome", "new_accepted_step", "retries_used"] + names +
+            ["slope", "score", "wallclock_s"])
+        self.samples = self.sample_rows = None
+        if samples:
+            self.samples, self.sample_rows = _table(outdir, "cv_samples.csv",
+                                                    ["cycle", "walker", "t_ps"] + names)
 
     def __call__(self, message):
         line = "[%s] %s" % (datetime.datetime.now().isoformat(timespec="seconds"), message)
@@ -63,19 +81,30 @@ class RunLog:
 
     def window(self, row):
         self.windows.write(json.dumps(row, default=_json, allow_nan=False) + "\n")
+        data = {name: _round(row["metric_final"][name]) for name in self.names}
+        data.update(cycle=row["cycle"], walker=row["walker"], start_accepted_step=row["start_accepted_step"],
+                    outcome=row["outcome"], new_accepted_step=row["new_accepted_step"],
+                    retries_used=row["retries_so_far"], slope=_round(row["slope_b"], 5),
+                    score=_round(row["score"], 5), wallclock_s=_round(row["wallclock_s"], 1))
+        self.window_rows.writerow(data)
+        if self.sample_rows is not None:
+            for k, t in enumerate(row["t_ps"]):
+                sample = {name: _round(row["metric_series"][name][k]) for name in self.names}
+                sample.update(cycle=row["cycle"], walker=row["walker"], t_ps=_round(t, 3))
+                self.sample_rows.writerow(sample)
 
-    def node(self, row):
-        data = {name: row["metrics"].get(name) for name in row["metrics"]}
-        data.update(node_id=row["id"], parent_id=row["parent"], cycle=row["cycle"],
+    def accepted_step(self, row):
+        data = {name: _round(row["metrics"].get(name)) for name in row["metrics"]}
+        data.update(accepted_step=row["id"], parent_accepted_step=row["parent"], cycle=row["cycle"],
                     walker=row["walker"], band=row.get("band"), cell=row.get("cell"),
-                    time_ps=row["time_ps"], step=row["step"], epot_kJmol=row["epot"],
-                    reason=row["reason"], dcd=row["dcd"], state_xml=row["state_xml"])
-        self.writer.writerow(data)
+                    time_ps=row["time_ps"], md_step=row["step"], epot_kJmol=_round(row["epot"], 3),
+                    reason=row["reason"], trajectory=row["dcd"], restart_file=row["state_xml"])
+        self.step_rows.writerow(data)
 
     def close(self):
-        self.progress.close()
-        self.windows.close()
-        self.nodes.close()
+        for handle in (self.progress, self.windows, self.steps, self.window_table, self.samples):
+            if handle is not None:
+                handle.close()
 
 
 class SumdRun:
@@ -121,7 +150,7 @@ class SumdRun:
         return -float(x[-1]) if spec.direction == "increase" else float(x[-1])
 
     def xml_rel(self, nid):
-        return os.path.join("states", "node_%06d.xml" % nid)
+        return os.path.join("accepted_steps", "accepted_step_%06d.xml" % nid)
 
     def parent_ref(self, nid):
         node = self.nodes[nid]
@@ -143,10 +172,10 @@ class SumdRun:
                    dcd=dcd, state_xml=self.xml_rel(nid))
         if self.pool:
             for evicted in self.pool.add(nid, progress, strata):
-                self.log("pool evicted node %d" % evicted)
+                self.log("pool evicted AcceptedStep %d" % evicted)
             row["cell"] = self.pool.cell_of(self.pool.entries[nid])
         self.nodes[nid] = row
-        self.log.node(row)
+        self.log.accepted_step(row)
         return nid
 
     def keep_dcd(self, path, cycle, walker):
@@ -171,7 +200,7 @@ class SumdRun:
             signature = tuple(np.round(raw.ravel(), 6))
             seen = self.seen_series.setdefault(parent, set())
             if signature in seen:
-                self.log("WARNING: identical window from node %d; try retry_velocities = reassign" % parent)
+                self.log("WARNING: identical window from AcceptedStep %d; try retry_velocities = reassign" % parent)
             seen.add(signature)
         columns, final_memory = [], {}
         for spec in self.supervised:
@@ -256,7 +285,7 @@ class SumdRun:
         root_memory = {m.name: float(root["metrics"][m.number - 1])
                        for m in self.supervised if m.type == "dihedral"
                        and m.direction != "toward"}
-        self.record_node(None, 0, None, root, None, "initial state", root_memory)
+        self.record_node(None, 0, None, root, None, "starting structure", root_memory)
         parent, held, final, stop_reason = 0, None, None, "max_cycles"
         for cycle in range(1, self.s.max_cycles + 1):
             if os.path.exists(os.path.join(self.out, "STOP")):
@@ -343,9 +372,12 @@ class SumdRun:
                 unwrapped = {m.name: [_finite(x) for x in result["supervised"][:, i]]
                              for i, m in enumerate(self.supervised)
                              if m.type == "dihedral" and m.direction != "toward"}
-                self.log.window(dict(cycle=cycle, walker=result["w"], rank=result["rank"],
-                    host=result["host"], device=result["device"], parent_state_id=batch_parent,
-                    child_state_id=child if result is accepted else None, accepted=result is accepted,
+                outcome = ("converged" if result is accepted and decision == "converged" else
+                           "kept" if result is accepted else
+                           "rejected" if result is chosen and verdict == "reject" else "not kept")
+                self.log.window(dict(cycle=cycle, walker=result["w"], rank=result["rank"], outcome=outcome,
+                    host=result["host"], device=result["device"], start_accepted_step=batch_parent,
+                    new_accepted_step=child if result is accepted else None, accepted=result is accepted,
                     best_in_batch=result is chosen, verdict=verdict if result is chosen else "not best",
                     reason=reason if result is chosen else None, action=action if result is chosen else None,
                     seed_used=result["seed"], start_mode=result["start_mode"],
@@ -391,20 +423,21 @@ class SumdRun:
         who = "walker w%d of %d" % (shown["w"], len(batch)) if len(batch) > 1 else "window"
         if accepted is None:
             outcome = ("window rejected" if len(batch) == 1 else
-                       "all walkers rejected (best w%d)" % chosen["w"])
+                       "all walkers rejected, best w%d" % chosen["w"])
             if not self.pool:
-                outcome += ", retry %d of %d" % (self.retries.get(parent, 0), self.s.max_retries_per_parent)
+                outcome += " (%d of %d retries from AcceptedStep %d used)" % (
+                    self.retries.get(parent, 0), self.s.max_retries_per_parent, parent)
         elif accepted is not chosen:
-            outcome = "%s -> node %d (%s of cycle %d)" % (action, child, who, accepted["cycle"])
+            outcome = "%s -> AcceptedStep %d (%s of cycle %d)" % (action, child, who, accepted["cycle"])
         else:
-            outcome = "%s %s -> node %d" % (who, "converged" if verdict == "converged" else "accepted",
-                                             child)
+            outcome = "%s %s -> AcceptedStep %d" % (who, "converged" if verdict == "converged" else "accepted",
+                                              child)
         if action and accepted is None:
             outcome += "; " + action
         before = self.nodes[parent]["metrics"]
         values = ", ".join("%s %s (%+.2f)" % (m.name, self._value(m, v), v - before[m.name])
                            for m, v in zip(self.s.metrics, shown["metrics_final"]))
-        return "cycle %d/%d from node %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
+        return "cycle %d/%d from AcceptedStep %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
 
     def path_to(self, node_id):
         path = []
@@ -442,7 +475,7 @@ def _only_dry_run(outdir):
         return False
     if "dry_run" not in summary or "stop_reason" in summary:
         return False
-    return not any(files for _, _, files in os.walk(os.path.join(outdir, "states"))) and \
+    return not any(files for _, _, files in os.walk(os.path.join(outdir, "accepted_steps"))) and \
         not any(files for _, _, files in os.walk(os.path.join(outdir, "windows")))
 
 
@@ -526,7 +559,7 @@ def run(args, scfg, comm=None):
             shutil.rmtree(outdir)
         if args.overwrite and os.path.isdir(outdir):
             shutil.rmtree(outdir)
-        for folder in ("states", "windows/accepted", "windows/tmp", "windows/rejected", "ranks"):
+        for folder in ("accepted_steps", "windows/accepted", "windows/tmp", "windows/rejected", "ranks"):
             os.makedirs(os.path.join(outdir, folder), exist_ok=True)
     if comm is not None:
         comm.barrier()
@@ -546,7 +579,7 @@ def run(args, scfg, comm=None):
         if not root:
             handle = open(os.path.join(outdir, "ranks", "rank_%03d.log" % rank), "w", buffering=1)
             sys.stdout = sys.stderr = handle
-    log = RunLog(outdir, [m.name for m in scfg.metrics]) if root else print
+    log = RunLog(outdir, [m.name for m in scfg.metrics], scfg.write_cv_samples) if root else print
     rng = np.random.default_rng(scfg.random_seed) if root else None
     seeds = [int(rng.integers(1, 2**31-1)) for _ in range(size)] if root else None
     if comm is not None:
@@ -623,7 +656,7 @@ def run(args, scfg, comm=None):
     path = runner.path_to(final)
     dcds = [runner.nodes[i]["dcd"] for i in path if runner.nodes[i]["dcd"]]
     with open(os.path.join(outdir, "final_path.txt"), "w") as fh:
-        fh.write("# node_id parent_id cycle metrics dcd\n")
+        fh.write("# accepted_step parent_accepted_step cycle metrics trajectory\n")
         for i in path:
             node = runner.nodes[i]
             fh.write("%d %s %d %s %s\n" % (i, node["parent"], node["cycle"],
@@ -636,15 +669,15 @@ def run(args, scfg, comm=None):
     engine.restore(engine.load_xml(final_xml, last["step"], last["epot"]), check=False)
     rst7 = prod.write_amber_restart(omm.simulation, os.path.join(outdir, "final_state.rst7"),
                                      netcdf=False, enforce_pbc=True)
-    summary.update(stop_reason=stop_reason, final_node=final, final_path=path,
-                   final_metrics=last["metrics"], n_nodes=len(runner.nodes),
-                   best_node=runner.best_node(),
+    summary.update(stop_reason=stop_reason, final_accepted_step=final, final_path=path,
+                   final_metrics=last["metrics"], n_accepted_steps=len(runner.nodes),
+                   best_accepted_step=runner.best_node(),
                    best_metrics=runner.nodes[runner.best_node()]["metrics"],
                    final_traj=dict(file="sumd_traj.dcd" if dcds else None,
                                    windows=len(dcds), frames=frames),
                    final_state_xml=final_xml, final_state_rst7=rst7)
     _write_json(summary_path, summary)
-    log("finished: %s; final node %d; %d frames" % (stop_reason, final, frames))
+    log("finished: %s; final AcceptedStep %d; %d frames" % (stop_reason, final, frames))
     log.close()
 
 

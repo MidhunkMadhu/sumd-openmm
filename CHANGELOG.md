@@ -5,6 +5,25 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## 0.4.0 (2026-09-27)
+
+Added
+- `windows.csv`: one row per window of every walker, kept or not, with
+  its outcome, start and new AcceptedStep, retries used, final metric
+  values, slope and score.
+- `cv_samples.csv`: every metric sample of every window;
+  `write_cv_samples = no` omits it.
+
+Changed
+- The saved points of the path are called AcceptedSteps:
+  `accepted_steps.csv` (was `nodes.csv`; columns `accepted_step`,
+  `parent_accepted_step`, `md_step`, `trajectory`, `restart_file`),
+  `accepted_steps/accepted_step_NNNNNN.xml` (was `states/node_NNNNNN.xml`),
+  and `final_accepted_step`, `best_accepted_step`, `n_accepted_steps` in
+  `run_summary.json`. `sumd-inspect` still reads earlier runs.
+- Progress lines read `from AcceptedStep 6 ... -> AcceptedStep 7`, and
+  rejections `(1 of 8 retries from AcceptedStep 7 used)`.
+
 ## 0.3.1 (2026-09-27)
 
 Changed

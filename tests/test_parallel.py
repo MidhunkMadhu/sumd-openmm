@@ -105,14 +105,14 @@ def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, noise=0.2, **ove
     from sumd_openmm.cli import RunLog, SumdRun
 
     out = str(tmp_path / "run")
-    for d in ("states", "windows/accepted", "windows/tmp", "windows/rejected"):
+    for d in ("accepted_steps", "windows/accepted", "windows/tmp", "windows/rejected"):
         os.makedirs(os.path.join(out, d))
 
     scfg = make_config(walkers=n_walkers, **over)
     worker = RankWorker(FakeEngine(seed=11, drift=drift, noise=noise, n=len(scfg.metrics)), None, out,
                         scfg.samples_per_window, 5, 1, True)
     ex = executor_factory(worker)
-    log = RunLog(out, [m.name for m in scfg.metrics])
+    log = RunLog(out, [m.name for m in scfg.metrics], scfg.write_cv_samples)
     runner = SumdRun(scfg, ex, out, np.random.default_rng(3), log,
                      worker.eng.current_cvs(None))
     runner.final, why = runner.run()
@@ -258,6 +258,32 @@ def test_progress_line_reports_walker_and_metrics(tmp_path):
     lines = [l for l in open(os.path.join(out, "progress.log")) if "] cycle " in l]
     assert len(lines) == 2
     first = lines[0]
-    assert "cycle 1/2 from node 0: walker w" in first and "of 3 accepted -> node 1" in first
+    assert "cycle 1/2 from AcceptedStep 0: walker w" in first and "of 3 accepted -> AcceptedStep 1" in first
     assert "metric_1 " in first and " A (" in first
     assert "by walker" not in first
+
+
+def test_tables_record_every_window_and_sample(tmp_path):
+    import csv
+    out, runner, scfg = run_fake(tmp_path, LocalExecutor, 3, drift=0.5, max_cycles=4,
+                                 walker_acceptance="sumd", retry_velocities="reassign",
+                                 max_retries_per_parent=8)
+    windows = list(csv.DictReader(open(os.path.join(out, "windows.csv"))))
+    assert len(windows) == 12                                  # 4 cycles x 3 walkers
+    assert {w["outcome"] for w in windows} <= {"kept", "converged", "rejected", "not kept"}
+    assert all(w["start_accepted_step"] == "0" and w["new_accepted_step"] == "" for w in windows)   # all rejected
+    assert "metric_1" in windows[0] and windows[0]["retries_used"] == "1"
+    samples = list(csv.DictReader(open(os.path.join(out, "cv_samples.csv"))))
+    assert len(samples) == 12 * scfg.samples_per_window
+    steps = list(csv.DictReader(open(os.path.join(out, "accepted_steps.csv"))))
+    assert steps[0]["accepted_step"] == "0"
+    assert steps[0]["restart_file"] == "accepted_steps/accepted_step_000000.xml"
+    assert "md_step" in steps[0]
+    log = open(os.path.join(out, "progress.log")).read()
+    assert "all walkers rejected, best w" in log and "(2 of 8 retries from AcceptedStep 0 used)" in log
+
+
+def test_samples_table_can_be_switched_off(tmp_path):
+    out, runner, scfg = run_fake(tmp_path, LocalExecutor, 1, max_cycles=2, write_cv_samples="no")
+    assert os.path.exists(os.path.join(out, "windows.csv"))
+    assert not os.path.exists(os.path.join(out, "cv_samples.csv"))

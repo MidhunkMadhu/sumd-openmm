@@ -32,11 +32,29 @@ from . import dcdtools
 def load(run):
     with open(os.path.join(run, "run_summary.json")) as f:
         summary = json.load(f)
-    with open(os.path.join(run, "nodes.csv")) as f:
-        nodes = list(csv.DictReader(f))
+    table = os.path.join(run, "accepted_steps.csv")
+    if not os.path.exists(table):
+        table = os.path.join(run, "nodes.csv")           # runs made before 0.4.0
+    with open(table) as f:
+        nodes = [_state_row(row) for row in csv.DictReader(f)]
     with open(os.path.join(run, "windows.jsonl")) as f:
         windows = [json.loads(l) for l in f if l.strip()]
     return summary, nodes, windows
+
+
+_OLD_NAMES = {"accepted_step": "node_id", "parent_accepted_step": "parent_id", "trajectory": "dcd",
+              "restart_file": "state_xml"}
+
+
+def _state_row(row):
+    """A row of accepted_steps.csv under the internal names (also reads nodes.csv)."""
+    if "node_id" in row:                                  # nodes.csv, whose "step" is the MD step
+        return dict(row)
+    out = dict(row)
+    for new, old in _OLD_NAMES.items():
+        if new in row:
+            out[old] = row[new]
+    return out
 
 
 def fnum(x):

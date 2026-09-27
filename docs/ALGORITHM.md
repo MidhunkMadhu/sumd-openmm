@@ -62,18 +62,18 @@ Deganutti et al., *eLife* 13, RP96513 (2025), Methods, "mwSuMD protocol":
 DMscore is defined in the paper for two metrics; here it accepts any
 number of supervised metrics.
 
-With `seeding=stratified`, the pool assigns each saved state a cell:
+With `seeding=stratified`, the pool assigns each AcceptedStep a cell:
 the band of the first supervised progress quantity and a bin for each
 stratification metric. It chooses a least-visited cell on the frontier,
 then a least-visited parent in that cell. Visit counts survive eviction.
 After the retry limit, a parent retires; if this empties the pool, the
 least-bad attempted window is committed.
 
-Each committed node is saved as an OpenMM State XML. Each window has its
-own DCD; discarded windows are deleted unless requested. The final DCD
-concatenates the path from the root to the final node: the converged
-node, otherwise the latest node of the chain or, with stratified seeding,
-the most advanced node. `run_summary.json` also names the most advanced
-node as `best_node`.
-Supervision biases which segments survive; use unbiased simulations from
-saved states for kinetic or thermodynamic estimates.
+Each kept window ends in an AcceptedStep, saved as an OpenMM State XML. Each
+window has its own DCD; discarded windows are deleted unless requested.
+The final DCD joins the path from AcceptedStep 0 to the final AcceptedStep: the converged
+AcceptedStep, otherwise the latest AcceptedStep of the chain or, with stratified seeding,
+the most advanced AcceptedStep. `run_summary.json` also names the most advanced
+AcceptedStep as `best_accepted_step`. Supervision biases which segments survive; use
+unbiased simulations from AcceptedSteps for kinetic or thermodynamic
+estimates.
