@@ -1,4 +1,4 @@
-"""Section 11.1 unit tests for cv.py. No OpenMM, no GPU."""
+"""Geometry and trend tests without an OpenMM Context."""
 
 import itertools
 
@@ -38,7 +38,7 @@ def system():
 
 
 def cv1(s, X, box=None):
-    return CV.ligand_rmsd_receptor_frame(X, s["a"], s["l"], s["ref"][s["a"]], s["ref"][s["l"]], box=box)
+    return CV.fitted_displacement_rmsd(X, s["a"], s["l"], s["ref"][s["a"]], s["ref"][s["l"]], box=box)
 
 
 # ---------------------------------------------------------------- Kabsch
@@ -114,10 +114,10 @@ def test_cv1_unchanged_across_periodic_boundary(system, box):
 
 def test_cv1_mass_weighted_runs_and_differs(system):
     w = np.linspace(1, 16, 12)
-    a = CV.ligand_rmsd_receptor_frame(system["cur"], system["a"], system["l"],
+    a = CV.fitted_displacement_rmsd(system["cur"], system["a"], system["l"],
                                       system["ref"][system["a"]], system["ref"][system["l"]])
-    b = CV.ligand_rmsd_receptor_frame(system["cur"], system["a"], system["l"],
-                                      system["ref"][system["a"]], system["ref"][system["l"]], w_lig=w)
+    b = CV.fitted_displacement_rmsd(system["cur"], system["a"], system["l"],
+                                      system["ref"][system["a"]], system["ref"][system["l"]], w_measure=w)
     assert np.isfinite(b)
     assert np.isclose(a, 4.0) and np.isclose(b, 4.0)   # pure translation: weights do not matter
 
@@ -128,7 +128,7 @@ def test_multi_molecule_alignment_made_coherent(system):
     base = cv1(system, Y, box=box)
     groups = [np.arange(30), np.arange(30, 60)]
     Y[30:60] += box[1]                                # second chain in another image
-    v = CV.ligand_rmsd_receptor_frame(Y, system["a"], system["l"], system["ref"][system["a"]],
+    v = CV.fitted_displacement_rmsd(Y, system["a"], system["l"], system["ref"][system["a"]],
                                       system["ref"][system["l"]], box=box, align_groups=groups)
     assert np.isclose(v, base, atol=1e-8)
 
@@ -172,7 +172,7 @@ def test_linear_trend_matches_scipy():
 
 
 def _reference_extract_and_fit(data):
-    """Verbatim logic of helpfolder/extract_and_fit.py (Amber reference)."""
+    """The five-point frame-index estimator."""
     from scipy.stats import linregress
     n = len(data)
     x_indices = [0, int(n / 4) - 1, 2 * int(n / 4) - 1, 3 * int(n / 4) - 1, 4 * int(n / 4) - 1]

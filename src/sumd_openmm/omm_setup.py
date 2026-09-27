@@ -36,6 +36,65 @@ def load_production_helpers():
     return production_helpers
 
 
+def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
+    """Build a Simulation from a serialized OpenMM System and a structure."""
+    from types import SimpleNamespace
+    from openmm import XmlSerializer, LangevinIntegrator, Platform, MonteCarloBarostat
+    from openmm.app import PDBFile, PDBxFile, Simulation
+    from openmm.unit import kelvin, picosecond, picoseconds
+
+    path = prod.get_str(cfg, "system_xml", required=True)
+    topfile = prod.get_str(cfg, "topology_file", required=True)
+    crdfile = prod.get_str(cfg, "coordinate_file", None)
+    with open(path) as fh:
+        system = XmlSerializer.deserialize(fh.read())
+    top = PDBxFile(topfile) if topfile.lower().endswith((".cif", ".pdbx")) else PDBFile(topfile)
+    if system.getNumParticles() != top.topology.getNumAtoms():
+        raise ValueError("system_xml particle count differs from topology_file atom count")
+    temperature = float(cfg.get("temp", 300))
+    friction = float(cfg.get("fric_coeff", 1))
+    dt = float(cfg.get("dt", 0.002))
+    integrator = LangevinIntegrator(temperature * kelvin, friction / picosecond, dt * picoseconds)
+    integrator.setRandomNumberSeed(int(integrator_seed))
+    requested = cfg.get("platform", "CUDA")
+    enabled = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
+    name = requested if requested in enabled else next(p for p in ("CUDA", "OpenCL", "CPU", "Reference") if p in enabled)
+    if name != requested:
+        log("Requested platform %s unavailable; using %s" % (requested, name))
+    props = {"CudaPrecision": cfg.get("cuda_precision", "single")} if name == "CUDA" else {}
+    if device_index is not None and name in ("CUDA", "OpenCL"):
+        props["DeviceIndex"] = str(device_index)
+    sim = Simulation(top.topology, system, integrator, Platform.getPlatformByName(name), props)
+    kind = "structure"
+    if crdfile and crdfile.lower().endswith(".xml"):
+        with open(crdfile) as fh:
+            state = XmlSerializer.deserialize(fh.read())
+        sim.context.setState(state)
+        kind = "openmm_xml_state"
+    elif crdfile and crdfile.lower().endswith(".chk"):
+        with open(crdfile, "rb") as fh:
+            sim.context.loadCheckpoint(fh.read())
+        kind = "openmm_checkpoint"
+    elif crdfile:
+        coord = PDBxFile(crdfile) if crdfile.lower().endswith((".cif", ".pdbx")) else PDBFile(crdfile)
+        sim.context.setPositions(coord.positions)
+    else:
+        sim.context.setPositions(top.positions)
+    genvel = prod.get_genvel(cfg)
+    if genvel or kind == "structure":
+        sim.context.setVelocitiesToTemperature(temperature * kelvin, int(integrator_seed))
+    if cfg.get("reset_step_and_time", "no").lower() in ("yes", "true"):
+        sim.currentStep = 0
+        sim.context.setTime(0 * picoseconds)
+    return SimpleNamespace(
+        simulation=sim, system=system, integrator=integrator, inputs=None,
+        fftype="OPENMM_XML", platform_name=name, platform_request=requested,
+        start_info=dict(kind=kind), topfile=topfile, crdfile=crdfile or topfile,
+        genvel=genvel, rewrap_coordinates=False, temperature_K=temperature,
+        dt_ps=dt, has_barostat=any(isinstance(f, MonteCarloBarostat)
+                                   for f in system.getForces()), device_index=device_index)
+
+
 def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     """
     Mirror of the top-level setup in openmm_production.py.
@@ -50,6 +109,9 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     fftype, platform_name, start_info, temperature_K, dt_ps and the file
     names, for the run summary.
     """
+    if cfg.get("force_field", "AMBER").upper() == "OPENMM_XML":
+        return build_xml_simulation(prod, cfg, integrator_seed, log, device_index)
+
     from openmm import (LangevinIntegrator, NonbondedForce, CustomNonbondedForce,
                         Platform)
     from openmm.app import (AmberPrmtopFile, GromacsGroFile, GromacsTopFile,

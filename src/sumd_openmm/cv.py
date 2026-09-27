@@ -34,7 +34,11 @@ def minimum_image(d, box):
     wrap the 27 neighbouring images are searched and the shortest is kept.
     """
     d = np.asarray(d, dtype=float)
+    if box is None:
+        return d
     box = np.asarray(box, dtype=float)
+    if abs(np.linalg.det(box)) < 1e-12:
+        return d
 
     s = d @ np.linalg.inv(box)
     s -= np.round(s)
@@ -60,8 +64,8 @@ def shift_group_near(X, point, box, weights=None):
 
 def make_groups_coherent(X, groups, box):
     """
-    Place every group of atoms (e.g. separate molecules of a multi-chain
-    receptor) in the image nearest the first group. `groups` is a list of
+    Place every group of atoms in the image nearest the first group.
+    `groups` is a list of
     index arrays into X. None or a single group is a no-op.
     """
     if groups is None or len(groups) < 2:
@@ -138,37 +142,24 @@ def rmsd_nofit(A, B, weights=None):
     return float(np.sqrt((w * sq).sum() / w.sum()))
 
 
-def ligand_rmsd_receptor_frame(
-    X, idx_align, idx_lig, ref_align, ref_lig,
-    box=None, w_align=None, w_lig=None, align_groups=None,
+def fitted_displacement_rmsd(
+    X, idx_align, idx_measure, ref_align, ref_measure,
+    box=None, w_align=None, w_measure=None, align_groups=None,
 ):
     """
-    Ligand RMSD to its bound pose in the receptor frame.
-
-    Reproduces the cpptraj pair used by the Amber SuMD reference:
-
-        rms ref :FIT_TRAJ :FIT_PDB            (superpose on receptor)
-        rms ref :LIG_TRAJ :LIG_PDB nofit      (ligand RMSD, no refit)
-
-    1. image the ligand next to the receptor (the autoimage step),
-    2. Kabsch on the alignment atoms,
-    3. apply that transform to the ligand,
-    4. RMSD against the reference ligand without further fitting.
-
-    The CV therefore keeps the ligand's translation relative to the site;
-    it is not a shape RMSD.
+    Fit one selection to its reference and measure a second without refitting.
     """
     A = X[idx_align]
-    L = X[idx_lig]
+    L = X[idx_measure]
 
     if box is not None:
         A = make_groups_coherent(A, align_groups, box)
-        L = shift_group_near(L, centroid(A, w_align), box, w_lig)
+        L = shift_group_near(L, centroid(A, w_align), box, w_measure)
 
     R, p0, q0 = kabsch(A, ref_align, w_align)
     L_fit = (L - p0) @ R.T + q0
 
-    return rmsd_nofit(L_fit, ref_lig, w_lig)
+    return rmsd_nofit(L_fit, ref_measure, w_measure)
 
 
 # ============================================================
@@ -176,7 +167,7 @@ def ligand_rmsd_receptor_frame(
 # ============================================================
 
 def com_distance(X, idx_a, idx_b, box=None, w_a=None, w_b=None):
-    """Centre-of-mass distance between two selections (classic SuMD CV)."""
+    """Distance between the weighted or unweighted centres of two selections."""
     d = centroid(X[idx_b], w_b) - centroid(X[idx_a], w_a)
 
     if box is not None:
@@ -186,10 +177,7 @@ def com_distance(X, idx_a, idx_b, box=None, w_a=None, w_b=None):
 
 
 def min_distance(X, idx_a, idx_b, box=None):
-    """
-    Minimum atom-atom distance between two selections, e.g. the pocket-2
-    gate aperture F154(4.56) side chain to T197(5.45) side chain.
-    """
+    """Minimum atom to atom distance between two selections."""
     D = X[idx_b][None, :, :] - X[idx_a][:, None, :]
 
     if box is not None:
@@ -246,7 +234,7 @@ def linear_trend(x, y, units="A/ps"):
 
 def reference_five_points(n):
     """
-    Frame indices used by extract_and_fit.py in the Amber reference:
+    Five equally spaced frame indices with integer truncation:
     [0, n/4-1, 2n/4-1, 3n/4-1, 4n/4-1], truncating, with the same membership
     test (so negative or repeated indices collapse the same way).
     """
@@ -260,7 +248,7 @@ def window_trend(t, cv, slope_points="all"):
     Trend of one window's CV series.
 
     slope_points = all : OLS on every sample against time (A/ps). Default.
-    slope_points = 5   : the Amber reference estimator, 5 subsampled points
+    slope_points = 5   : five subsampled points
                          regressed against FRAME INDEX (A/frame). Only the
                          sign enters the decision, so the units differ
                          harmlessly; they are logged.

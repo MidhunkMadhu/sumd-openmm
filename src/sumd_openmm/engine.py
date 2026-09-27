@@ -12,38 +12,6 @@ restoring it costs milliseconds - much cheaper than XML round-trips.
 
 import numpy as np
 
-from . import cv as CV
-
-
-class CVEvaluator:
-
-    def __init__(self, scfg, sel, align_groups=None):
-        self.s = scfg
-        self.sel = sel
-        self.align_groups = align_groups
-
-    def cv1(self, X, box):
-        s, sel = self.s, self.sel
-
-        if s.cv1_type == "rmsd":
-            return CV.ligand_rmsd_receptor_frame(
-                X, sel.align, sel.cv1, sel.ref_align_xyz, sel.ref_cv1_xyz,
-                box=box, w_align=sel.w_align, w_lig=sel.w_cv1, align_groups=self.align_groups)
-
-        if s.cv1_type == "distance":
-            return CV.com_distance(X, sel.cv1_site, sel.cv1, box=box, w_a=sel.w_site, w_b=sel.w_cv1)
-
-        return CV.min_distance(X, sel.cv1_site, sel.cv1, box=box)
-
-    def cv2(self, X, box):
-        if self.sel.cv2_a is None:
-            return None
-        return CV.min_distance(X, self.sel.cv2_a, self.sel.cv2_b, box=box)
-
-    def __call__(self, X, box):
-        return self.cv1(X, box), self.cv2(X, box)
-
-
 class Snap:
     __slots__ = ("state", "step", "epot")
 
@@ -60,6 +28,7 @@ class Engine:
         self.sim = omm.simulation
         self.ctx = omm.simulation.context
         self.log = log
+        self.periodic = omm.system.usesPeriodicBoundaryConditions()
 
     def molecules(self):
         return [np.array(m, dtype=int) for m in self.ctx.getMolecules()]
@@ -76,8 +45,9 @@ class Engine:
         return float(snap.state.getTime().value_in_unit(self.u.picosecond))
 
     def frame(self, wrap=True):
-        st = self.ctx.getState(getPositions=True, enforcePeriodicBox=wrap)
-        return st, st.getPositions(asNumpy=True), st.getPeriodicBoxVectors(asNumpy=True)
+        st = self.ctx.getState(getPositions=True, enforcePeriodicBox=wrap and self.periodic)
+        box = st.getPeriodicBoxVectors(asNumpy=True) if self.periodic else None
+        return st, st.getPositions(asNumpy=True), box
 
     def _energy_check(self, epot, check):
         if not check:
@@ -147,7 +117,8 @@ class Engine:
 
     def current_cvs(self, evaluator):
         _, pos, box = self.frame(wrap=True)
-        return evaluator(pos.value_in_unit(self.u.angstrom), box.value_in_unit(self.u.angstrom))
+        return evaluator(pos.value_in_unit(self.u.angstrom),
+                         None if box is None else box.value_in_unit(self.u.angstrom))
 
     def run_window(self, n_samples, steps_per_sample, evaluator, dcd_path, stride):
         """
@@ -160,7 +131,7 @@ class Engine:
 
         u = self.u
         t0 = self.ctx.getState().getTime().value_in_unit(u.picosecond)
-        t, c1, c2 = [], [], []
+        t, values = [], []
 
         with open(dcd_path, "wb") as fh:
             dcd = DCDFile(fh, self.sim.topology, self.omm.dt_ps * u.picoseconds,
@@ -171,12 +142,12 @@ class Engine:
                 self.sim.step(steps_per_sample)
                 st, pos, box = self.frame(wrap=True)
 
-                a, b = evaluator(pos.value_in_unit(u.angstrom), box.value_in_unit(u.angstrom))
+                row = evaluator(pos.value_in_unit(u.angstrom),
+                                None if box is None else box.value_in_unit(u.angstrom))
                 t.append(st.getTime().value_in_unit(u.picosecond) - t0)
-                c1.append(a)
-                c2.append(b)
+                values.append(row)
 
                 if k % stride == 0:
                     dcd.writeModel(pos, periodicBoxVectors=box)
 
-        return np.array(t), np.array(c1), (None if c2[0] is None else np.array(c2))
+        return np.asarray(t), np.asarray(values)

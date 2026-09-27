@@ -70,14 +70,13 @@ def test_walker_ranks():
 # ---------------------------------------------------------------- config
 
 def test_walkers_auto():
-    c = make_config(walkers="auto")
-    assert c.walkers == 1                                     # serial: classic SuMD
+    assert make_config(walkers="auto").walkers == 1
     c = make_config(walkers="auto", parallel="mpi")
     assert c.walkers == 0 and c.resolve_walkers(4) == [] and c.walkers == 4
     c = make_config(walkers="2", parallel="mpi")
     assert "idle" in c.resolve_walkers(4)[0]
     c = make_config(walkers="5", parallel="mpi")
-    assert "not a multiple" in c.resolve_walkers(4)[0]
+    assert c.resolve_walkers(4) == []
 
 
 def test_bad_gpu_devices():
@@ -87,13 +86,13 @@ def test_bad_gpu_devices():
 
 def test_auto_walkers_single_rank_smscore_refused():
     c = make_config(walkers="auto", parallel="mpi", walker_score="smscore")
-    with pytest.raises(ConfigError, match="walkers = 1"):
+    with pytest.raises(ConfigError, match="score modes"):
         c.resolve_walkers(1)
 
 
 # ---------------------------------------------------------------- full loop, fake engine
 
-def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, **over):
+def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, noise=0.2, **over):
     from sumd_openmm.cli import RunLog, SumdRun
 
     out = str(tmp_path / "run")
@@ -101,11 +100,12 @@ def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, **over):
         os.makedirs(os.path.join(out, d))
 
     scfg = make_config(walkers=n_walkers, **over)
-    worker = RankWorker(FakeEngine(seed=11, drift=drift), None, out,
+    worker = RankWorker(FakeEngine(seed=11, drift=drift, noise=noise, n=len(scfg.metrics)), None, out,
                         scfg.samples_per_window, 5, 1, True)
     ex = executor_factory(worker)
-    log = RunLog(out)
-    runner = SumdRun(scfg, ex, out, np.random.default_rng(3), log)
+    log = RunLog(out, [m.name for m in scfg.metrics])
+    runner = SumdRun(scfg, ex, out, np.random.default_rng(3), log,
+                     worker.eng.current_cvs(None))
     final, why = runner.run()
     ex.shutdown()
     log.close()
@@ -115,7 +115,9 @@ def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, **over):
 @pytest.mark.parametrize("over", [
     dict(max_cycles=15, max_retries_per_parent=1),                                   # accept_best path
     dict(max_cycles=15, max_retries_per_parent=1, on_retry_exhaustion="step_back"),
-    dict(max_cycles=15, supervision="stratified", cv1_band_width=0.2, max_retries_per_parent=2, drift=0.0),
+    dict(max_cycles=15, seeding="stratified", band_width=0.2,
+         metric_2_type="distance", metric_2_a="indices:2", metric_2_b="indices:3",
+         metric_2_role="stratify", metric_2_bins="20", max_retries_per_parent=2),
 ])
 def test_serial_loop_invariants(tmp_path, over):
     out, runner, scfg = run_fake(tmp_path, LocalExecutor, 1, **over)
@@ -129,6 +131,40 @@ def test_serial_multiwalker(tmp_path):
     rows = check_run_invariants(out, runner, walkers=3)
     assert len(rows) == 18
     assert len(runner.nodes) == 7                             # smscore always extends
+
+
+@pytest.mark.parametrize("over", [
+    dict(metric_1_direction="increase", metric_1_target="100"),
+    dict(supervision="combined", metric_2_type="distance",
+         metric_2_a="indices:2", metric_2_b="indices:3",
+         metric_2_role="supervise", metric_2_direction="increase", metric_2_target="100",
+         metric_1_sigma="1", metric_2_sigma="1"),
+    dict(supervision="multistep", stages="1,2", metric_2_type="distance",
+         metric_2_a="indices:2", metric_2_b="indices:3",
+         metric_2_role="supervise", metric_2_direction="increase", metric_2_target="100"),
+    dict(seeding="stratified", metric_2_type="distance",
+         metric_2_a="indices:2", metric_2_b="indices:3",
+         metric_2_role="stratify", metric_2_bins="20",
+         metric_3_type="distance", metric_3_a="indices:4", metric_3_b="indices:5",
+         metric_3_role="stratify", metric_3_bins="22"),
+])
+def test_general_modes_keep_state_and_log_all_metrics(tmp_path, over):
+    out, runner, scfg = run_fake(tmp_path, LocalExecutor, 1, max_cycles=4, **over)
+    rows = check_run_invariants(out, runner, 1)
+    assert len(rows) == 4
+    assert set(rows[0]["metric_series"]) == {metric.name for metric in scfg.metrics}
+
+
+def test_multistep_changes_stage_after_convergence(tmp_path):
+    out, runner, _ = run_fake(
+        tmp_path, LocalExecutor, 1, drift=-1, noise=0, max_cycles=3,
+        supervision="multistep", stages="1,2", metric_1_target="19",
+        metric_2_type="distance", metric_2_a="indices:2",
+        metric_2_b="indices:3", metric_2_role="supervise",
+        metric_2_direction="increase", metric_2_target="100")
+    rows = check_run_invariants(out, runner, 1)
+    assert runner.stage == 1
+    assert rows[0]["stage"] == 1 and rows[1]["stage"] == 2
 
 
 def test_mpi_executor_in_process(tmp_path):

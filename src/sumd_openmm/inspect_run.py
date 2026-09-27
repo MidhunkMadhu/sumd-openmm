@@ -2,7 +2,7 @@
 """
 inspect_run.py
 
-Audit a finished SuMD output directory (validation items 2-4 of the prompt).
+Audit trajectories, states and sampling from a finished SuMD run.
 
     sumd-inspect sumd_run [sumd_run2 ...] [--json out.json]
     (or python -m sumd_openmm.inspect_run ...)
@@ -14,8 +14,7 @@ Per run it reports:
     accepted windows on the final path, in order, and every committed
     window's last DCD frame equals its node's saved State (so no DCD was
     mixed up with a rejected attempt);
-  * the CV2 (gate) stratum distribution over retained states, i.e. the seed
-    pool, which is what the single-vs-stratified comparison is about.
+  * the distribution and range of every named metric in retained states.
 
 Quantities that cannot be computed are reported as null, never 0.
 """
@@ -90,19 +89,16 @@ def inspect(run):
 
     out["max_dcd_vs_state_mismatch_A"] = dcd_state_consistency(run, nodes)
 
-    # ---------------------------------------------- seed pool vs gate
-    strata = [n["cv2_stratum"] for n in nodes if n["cv2_stratum"] != ""]
-    if strata:
-        vals, counts = np.unique(np.array(strata, dtype=int), return_counts=True)
-        out["retained_states_by_cv2_stratum"] = {int(v): int(c) for v, c in zip(vals, counts)}
-        cv2 = np.array([fnum(n["cv2_final"]) for n in nodes if n["cv2_final"] != ""])
-        out["retained_cv2_range_A"] = [round(float(cv2.min()), 3), round(float(cv2.max()), 3)]
-        out["retained_cv2_sd_A"] = round(float(cv2.std(ddof=1)), 3) if len(cv2) > 1 else None
-    else:
-        out["retained_states_by_cv2_stratum"] = None
-
-    cv1 = [fnum(n["cv1_final"]) for n in nodes]
-    out["best_cv1_A"] = min(cv1) if cv1 else None
+    out["retained_metrics"] = {}
+    for metric in summary.get("metrics", []):
+        name = metric["name"]
+        values = np.array([fnum(n[name]) for n in nodes if n.get(name, "") != ""], float)
+        out["retained_metrics"][name] = (
+            dict(min=float(values.min()), max=float(values.max()),
+                 sd=float(values.std(ddof=1)) if len(values) > 1 else None)
+            if len(values) else None)
+    cells = [n["cell"] for n in nodes if n.get("cell")]
+    out["retained_states_by_cell"] = {cell: cells.count(cell) for cell in sorted(set(cells))}
     return out
 
 

@@ -1,9 +1,9 @@
 """
-Section 11.1: CV1 from cv.py must match the Amber reference's cpptraj
+The fitted displacement RMSD must match cpptraj on corresponding images
 "fit on receptor, then rms nofit on ligand" to within 1e-3 A.
 
 Needs cpptraj, ParmEd and a real system. Point these at one, e.g. the
-testfolder of supervisedmdamber:
+a separately supplied topology and trajectory:
 
     export SUMD_TEST_PARM=.../testfolder/example.parm7
     export SUMD_TEST_RST=.../testfolder/example.rst7
@@ -93,7 +93,7 @@ def system():
 
 def ours(s, frame):
     X = frame.astype(np.float32).astype(float)                    # what cpptraj read back
-    return CV.ligand_rmsd_receptor_frame(X, s["ia"], s["il"], s["ref_a"], s["ref_l"], box=s["H"])
+    return CV.fitted_displacement_rmsd(X, s["ia"], s["il"], s["ref_a"], s["ref_l"], box=s["H"])
 
 
 def test_cv1_matches_cpptraj_fit_then_rms_nofit(system, tmp_path):
@@ -130,7 +130,7 @@ def test_ligand_in_other_image(system, tmp_path):
     reference's cpptraj `autoimage` is only checked for agreement where it
     returns the nearest image: in CPPTRAJ V7.6.2 it does NOT for some
     directions (observed: -a, +b, -c left in the far image), which is the
-    silent-CV failure section 5.1 of the prompt warns about. The counts are
+    mismatched atom counts and name order are rejected. The counts are
     printed, not asserted, since they depend on the cpptraj version.
     """
     s = system

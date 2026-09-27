@@ -82,11 +82,11 @@ class RankWorker:
 
     def root(self, xml_path):
         snap = self.eng.snapshot()
-        c1, c2 = self.eng.current_cvs(self.ev)
+        values = self.eng.current_cvs(self.ev)
         self.eng.save_xml(snap, xml_path)
         self._cache(0, snap)
         self.ctx = ("node", 0)
-        return dict(cv1=float(c1), cv2=(None if c2 is None else float(c2)),
+        return dict(metrics=np.asarray(values, float),
                     time_ps=self.eng.time_ps(snap), step=snap.step, epot=snap.epot)
 
     def _restore_parent(self, parent_id, packet):
@@ -120,7 +120,7 @@ class RankWorker:
 
             tmp = os.path.join(self.out, "windows", "tmp", "c%05d_w%d.dcd" % (cycle, w))
             wall0 = time.time()
-            t, c1, c2 = self.eng.run_window(self.samples, self.sps, self.ev, tmp, self.stride)
+            t, values = self.eng.run_window(self.samples, self.sps, self.ev, tmp, self.stride)
             wall = time.time() - wall0
 
             snap = self.eng.snapshot()
@@ -129,11 +129,11 @@ class RankWorker:
 
             out.append(dict(
                 key=key, w=w, cycle=cycle, rank=self.rank, host=self.host, device=self.device,
-                t=t, cv1=c1, cv2=c2, seed=seed, start_mode=start_mode, restore_dE=dE,
+                t=t, metrics=values, seed=seed, start_mode=start_mode, restore_dE=dE,
                 dcd_tmp=tmp, wall=wall, t_start_wall=wall0,
                 time_ps=self.eng.time_ps(snap),
                 step=snap.step, epot=snap.epot,
-                cv1_final=float(c1[-1]), cv2_final=(None if c2 is None else float(c2[-1])),
+                metrics_final=np.asarray(values[-1], float),
             ))
 
         return out

@@ -1,0 +1,25 @@
+# Replace paths, selections and targets with values for your system.
+force_field = AMBER
+topology_file = system.parm7
+coordinate_file = system.rst7
+platform = CUDA
+temp = 300
+dt = 0.002
+window_ps = 20
+cv_sample_ps = 1
+max_cycles = 500
+output_dir = sumd_run
+supervision = multistep
+stages = 1,2
+metric_1_type = distance
+metric_1_a = :20
+metric_1_b = :310
+metric_1_role = supervise
+metric_1_direction = decrease
+metric_1_target = 8
+metric_2_type = distance
+metric_2_a = :45
+metric_2_b = :210
+metric_2_role = supervise
+metric_2_direction = increase
+metric_2_target = 18

@@ -44,10 +44,10 @@ def test_helpers_import_and_parse_example_inp():
     missing = [f for f in REQUIRED if not hasattr(prod, f)]
     assert not missing, missing
 
-    cfg = prod.read_key_value_file(os.path.join(ROOT, "examples", "taar1_ral_sumd.inp"))
+    cfg = prod.read_key_value_file(os.path.join(ROOT, "examples", "binding_distance.inp"))
     cfg.setdefault("nstep", "0")
     inputs = prod.build_inputs(cfg)
-    assert inputs.dt == 0.002 and inputs.temp == 310.0 and inputs.p_type == "membrane"
+    assert inputs.dt == 0.002 and inputs.temp == 300.0
 
 
 @pytest.mark.skipif(not os.environ.get("MD_OPENMM_DIR"), reason="set MD_OPENMM_DIR to check sync")

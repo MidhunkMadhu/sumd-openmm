@@ -1,19 +1,7 @@
-"""
-selection.py
+"""Resolve selections once against the simulation topology."""
 
-Resolve Amber-style masks ONCE at startup into integer index arrays.
-
-Masks are evaluated with ParmEd's AmberMask, which implements cpptraj/ambmask
-semantics: ':N' is the N-th residue in file order (not a PDB resid), '@'
-atom names, '=' wildcard, '&', '|', '!'. ParmEd is already an MD_openmm
-dependency. Nothing here runs inside the cycle loop.
-
-Note: the Amber reference prepended ':' to its mask strings
-(":{FIT_TRAJ_STRING}"). Here masks are written in full, e.g. ':1-313@CA'.
-"""
-
-from dataclasses import dataclass, field
-from typing import List, Optional
+import os
+import re
 
 import numpy as np
 
@@ -24,149 +12,143 @@ class SelectionError(ValueError):
 
 def load_structure(path, xyz=None):
     import parmed
-
-    if xyz is None:
-        return parmed.load_file(path)
-
-    return parmed.load_file(path, xyz=xyz)
-
-
-def mask_indices(struct, mask, label):
-    from parmed.amber import AmberMask
-
-    idx = np.array(list(AmberMask(struct, mask).Selected()), dtype=int)
-
-    if idx.size == 0:
-        raise SelectionError("%s: mask %r selects no atoms" % (label, mask))
-
-    return idx
+    return parmed.load_file(path, xyz=xyz) if xyz is not None else parmed.load_file(path)
 
 
 def describe(struct, idx):
-    """Residue summary of a selection, e.g. ['PHE136'] (file-order numbers)."""
+    return ["%s%d" % (struct.residues[r].name, r + 1)
+            for r in sorted({struct.atoms[int(i)].residue.idx for i in idx})]
+
+
+def _indices(expr):
     out = []
-
-    for r in sorted({struct.atoms[i].residue.idx for i in idx}):
-        res = struct.residues[r]
-        out.append("%s%d" % (res.name, r + 1))
-
-    return out
-
-
-def check_resnames(struct, idx, expect, label):
-    """
-    Abort unless every residue in the selection has the expected name.
-    `expect` may list alternatives separated by '/', e.g. 'HIS/HIE/HID'.
-    """
-    if expect is None:
-        return
-
-    allowed = {x.strip().upper() for x in expect.split("/")}
-    found = {struct.atoms[i].residue.name.upper() for i in idx}
-
-    if not found <= allowed:
-        raise SelectionError(
-            "%s: expected residue %s, selection covers %s. Numbering in this "
-            "topology differs from what the .inp assumes; fix the mask."
-            % (label, expect, ", ".join(describe(struct, idx)))
-        )
+    for token in re.split(r"[,\s]+", expr.strip()):
+        if not token:
+            continue
+        match = re.fullmatch(r"(\d+)-(\d+)", token)
+        if match:
+            a, b = int(match[1]), int(match[2])
+            if b < a:
+                raise SelectionError("invalid index range %s" % token)
+            out.extend(range(a, b + 1))
+        elif token.isdigit():
+            out.append(int(token))
+        else:
+            raise SelectionError("invalid atom index %s" % token)
+    return np.asarray(out, dtype=int)
 
 
-def masses(struct, idx):
-    return np.array([struct.atoms[i].mass for i in idx], dtype=float)
+def resolve_one(struct, expression, syntax="cpptraj", label="selection", base_dir="."):
+    if not expression:
+        raise SelectionError("%s is empty" % label)
+    choice, value = syntax, expression
+    for prefix in ("cpptraj:", "vmd:", "indices:", "file:"):
+        if expression.startswith(prefix):
+            choice, value = prefix[:-1], expression[len(prefix):]
+            break
+    try:
+        if choice == "cpptraj":
+            from parmed.amber import AmberMask
+            idx = np.asarray(list(AmberMask(struct, value).Selected()), dtype=int)
+        elif choice == "vmd":
+            import MDAnalysis as mda
+            idx = np.asarray(mda.Universe(struct).select_atoms(value).indices, dtype=int)
+        elif choice == "indices":
+            idx = _indices(value)
+        elif choice == "file":
+            with open(os.path.join(base_dir, value)) as fh:
+                idx = _indices(" ".join(line.split("#", 1)[0] for line in fh))
+        else:
+            raise SelectionError("selection_syntax must be cpptraj or vmd")
+    except SelectionError:
+        raise
+    except Exception as exc:
+        raise SelectionError("%s: cannot parse %r: %s" % (label, expression, exc)) from exc
+    if not len(idx) or np.any(idx < 0) or np.any(idx >= len(struct.atoms)):
+        raise SelectionError("%s: %r selects no atoms or has indices outside 0..%d" %
+                             (label, expression, len(struct.atoms) - 1))
+    if len(np.unique(idx)) != len(idx):
+        raise SelectionError("%s: selection contains duplicate atom indices" % label)
+    return idx, choice
 
 
-@dataclass
-class ResolvedSelections:
-    cv1: np.ndarray
-    cv1_site: Optional[np.ndarray] = None
-    align: Optional[np.ndarray] = None
-    ref_cv1_xyz: Optional[np.ndarray] = None
-    ref_align_xyz: Optional[np.ndarray] = None
-    w_cv1: Optional[np.ndarray] = None
-    w_site: Optional[np.ndarray] = None
-    w_align: Optional[np.ndarray] = None
-    cv2_a: Optional[np.ndarray] = None
-    cv2_b: Optional[np.ndarray] = None
-    report: dict = field(default_factory=dict)
+def _paired(top, ref, a, b, label):
+    if len(a) != len(b):
+        raise SelectionError("%s: %d topology atoms but %d reference atoms" % (label, len(a), len(b)))
+    for i, j in zip(a, b):
+        if top.atoms[i].name != ref.atoms[j].name:
+            raise SelectionError("%s: atom pairing differs at %s / %s" %
+                                 (label, top.atoms[i].name, ref.atoms[j].name))
 
 
-def _pair_names(top, ref, idx_t, idx_r, label):
-    """Traj and reference atoms are paired in order, as cpptraj does. Check names."""
-    if len(idx_t) != len(idx_r):
-        raise SelectionError(
-            "%s: topology mask selects %d atoms, reference mask selects %d"
-            % (label, len(idx_t), len(idx_r))
-        )
+def _molecule_ids(struct):
+    parent = list(range(len(struct.atoms)))
 
-    bad = [
-        (top.atoms[i].name, ref.atoms[j].name)
-        for i, j in zip(idx_t, idx_r)
-        if top.atoms[i].name != ref.atoms[j].name
-    ]
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
 
-    if bad:
-        raise SelectionError(
-            "%s: %d atom-name mismatches between topology and reference pairing, "
-            "first: %s" % (label, len(bad), bad[:5])
-        )
+    for bond in struct.bonds:
+        a, b = find(bond.atom1.idx), find(bond.atom2.idx)
+        parent[b] = a
+    return [find(i) for i in range(len(parent))]
 
 
-def resolve(scfg, topology_file):
-    """
-    Resolve every selection in a SumdConfig against the topology (and the
-    reference structure for rmsd). Returns ResolvedSelections with a
-    `report` dict for run_summary.json.
-    """
+def resolve(config, topology_file, base_dir="."):
+    from .metrics import Metric, Evaluator
+
     top = load_structure(topology_file)
-    rep = {"topology_file": topology_file, "n_atoms": len(top.atoms)}
-
-    sel = ResolvedSelections(cv1=mask_indices(top, scfg.cv1_traj_selection, "cv1_traj_selection"))
-    check_resnames(top, sel.cv1, scfg.cv1_expect, "cv1_traj_selection")
-    rep["cv1"] = {"mask": scfg.cv1_traj_selection, "n": int(sel.cv1.size),
-                  "residues": describe(top, sel.cv1)}
-
-    if scfg.mass_weighted or scfg.cv1_type == "distance":
-        sel.w_cv1 = masses(top, sel.cv1)
-
-    if scfg.cv1_type == "rmsd":
-        ref = load_structure(scfg.reference_structure)
-
-        sel.align = mask_indices(top, scfg.align_traj_selection, "align_traj_selection")
-        ref_align = mask_indices(ref, scfg.align_ref_selection, "align_ref_selection")
-        ref_cv1 = mask_indices(ref, scfg.cv1_ref_selection, "cv1_ref_selection")
-
-        _pair_names(top, ref, sel.align, ref_align, "alignment")
-        _pair_names(top, ref, sel.cv1, ref_cv1, "cv1")
-
-        xyz = np.asarray(ref.coordinates, dtype=float)
-        sel.ref_align_xyz = xyz[ref_align]
-        sel.ref_cv1_xyz = xyz[ref_cv1]
-
-        if scfg.mass_weighted:
-            sel.w_align = masses(top, sel.align)
-
-        rep["align"] = {"mask": scfg.align_traj_selection, "n": int(sel.align.size)}
-        rep["reference_structure"] = scfg.reference_structure
-    else:
-        sel.cv1_site = mask_indices(top, scfg.cv1_site_selection, "cv1_site_selection")
-        if scfg.cv1_type == "distance":
-            sel.w_site = masses(top, sel.cv1_site)
-        rep["cv1_site"] = {"mask": scfg.cv1_site_selection, "n": int(sel.cv1_site.size),
-                           "residues": describe(top, sel.cv1_site)}
-
-    if scfg.has_cv2:
-        sel.cv2_a = mask_indices(top, scfg.cv2_selection_a, "cv2_selection_a")
-        sel.cv2_b = mask_indices(top, scfg.cv2_selection_b, "cv2_selection_b")
-        check_resnames(top, sel.cv2_a, scfg.cv2_expect_a, "cv2_selection_a")
-        check_resnames(top, sel.cv2_b, scfg.cv2_expect_b, "cv2_selection_b")
-
-        rep["cv2_a"] = {"mask": scfg.cv2_selection_a, "n": int(sel.cv2_a.size),
-                        "residues": describe(top, sel.cv2_a),
-                        "atoms": [top.atoms[i].name for i in sel.cv2_a]}
-        rep["cv2_b"] = {"mask": scfg.cv2_selection_b, "n": int(sel.cv2_b.size),
-                        "residues": describe(top, sel.cv2_b),
-                        "atoms": [top.atoms[i].name for i in sel.cv2_b]}
-
-    sel.report = rep
-    return sel
+    molecule_ids = _molecule_ids(top)
+    compiled, reports = [], []
+    for spec in config.metrics:
+        groups, components, report = {}, {}, dict(number=spec.number, name=spec.name, type=spec.type,
+                                  role=spec.role, direction=spec.direction,
+                                  target=spec.target, tolerance=spec.tolerance,
+                                  target_delta=spec.target_delta, selections={})
+        for key in "abcd":
+            expr = getattr(spec, key)
+            if expr is None:
+                continue
+            idx, syntax = resolve_one(top, expr, config.selection_syntax,
+                                      spec.name + "." + key, base_dir)
+            expect = spec.expect.get(key)
+            if expect and not {top.atoms[int(i)].residue.name.upper() for i in idx} <= {
+                    part.strip().upper() for part in expect.split("/")}:
+                raise SelectionError("%s.%s: expected %s, got %s" %
+                                     (spec.name, key, expect, describe(top, idx)))
+            if spec.type in ("angle", "dihedral") and len(idx) != 1:
+                atoms = ["%d:%s" % (i, top.atoms[int(i)].name) for i in idx[:20]]
+                raise SelectionError("%s.%s must select exactly one atom; matched %s" %
+                                     (spec.name, key, ", ".join(atoms)))
+            groups[key] = idx
+            by_molecule = {}
+            for local, atom in enumerate(idx):
+                by_molecule.setdefault(molecule_ids[int(atom)], []).append(local)
+            components[key] = [np.asarray(part, int) for part in by_molecule.values()]
+            report["selections"][key] = dict(expression=expr, syntax=syntax,
+                    count=len(idx), residues=describe(top, idx),
+                    atoms=[top.atoms[int(i)].name for i in idx[:10]])
+        reference = {}
+        if spec.type in ("rmsd", "rmsd_displacement"):
+            ref = load_structure(os.path.join(base_dir, spec.reference))
+            ref_a, _ = resolve_one(ref, spec.a, config.selection_syntax,
+                                    spec.name + ".reference_a", base_dir)
+            _paired(top, ref, groups["a"], ref_a, spec.name + ".a")
+            xyz = np.asarray(ref.coordinates, dtype=float)
+            reference = {"a": xyz[ref_a]}
+            if spec.type == "rmsd_displacement":
+                fit, fit_syntax = resolve_one(top, spec.fit, config.selection_syntax,
+                                              spec.name + ".fit", base_dir)
+                ref_fit, _ = resolve_one(ref, spec.fit, config.selection_syntax,
+                                          spec.name + ".reference_fit", base_dir)
+                _paired(top, ref, fit, ref_fit, spec.name + ".fit")
+                groups["fit"] = fit
+                reference["fit"] = xyz[ref_fit]
+                report["selections"]["fit"] = dict(expression=spec.fit, syntax=fit_syntax,
+                         count=len(fit), residues=describe(top, fit),
+                         atoms=[top.atoms[int(i)].name for i in fit[:10]])
+        compiled.append(Metric(spec, groups, reference, components))
+        reports.append(report)
+    return Evaluator(compiled), reports
