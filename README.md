@@ -52,8 +52,8 @@ sumd-openmm --test
 For a local checkout, `conda env create -f environment.yml` followed by
 `python -m pip install -e .`. MPI runs need `mpi4py` built against the
 cluster's MPI; VMD-like selections need `MDAnalysis`. AMD GPUs need a
-ROCm 6 runtime; [parallel use](docs/PARALLEL.md) lists tested versions
-and a Dardel job script.
+ROCm 6 runtime; [parallel use](docs/PARALLEL.md) gives a generic GPU
+job script and tested versions for Dardel.
 
 `sumd-openmm --test` lists the OpenMM platforms available, checks that
 they compute the same forces, and runs two SuMD cycles of a built-in

@@ -40,20 +40,31 @@ Set `mpi_mode=multi_node`. For two nodes with four GPUs each, request
 implementation supplied by the cluster; mixing MPI implementations can
 hang collectives. Use a shared output path, not local node scratch.
 
-## AMD GPUs (Dardel)
+## AMD GPUs
+
+OpenMM 8.6.1 from conda-forge includes the HIP platform for AMD GPUs. It
+needs a ROCm 6.x runtime (`libhiprtc.so.6`) on the compute nodes; it does
+not load with ROCm 7. For multiple walkers, build mpi4py with the
+cluster's MPI compiler wrapper: `MPICC=mpicc` in general, `MPICC="cc
+-shared"` on HPE Cray systems.
+
+[`examples/gpu_node.slurm`](../examples/gpu_node.slurm) is a job script
+for one node with one walker per GPU; replace its `<...>` fields with the
+values of your cluster.
+
+## Dardel
 
 Tested on Dardel (HPE Cray, AMD MI250X) with:
 
 | Component | Version |
 | --- | --- |
 | Python | 3.11 (conda-forge) |
-| OpenMM | 8.6.1 (conda-forge `openmm`; includes the HIP platform) |
-| ROCm module | `rocm/6.4.4` (any 6.x; OpenMM 8.6.1's HIP platform does not load with ROCm 7) |
-| MPI | Cray MPICH from the default `PDC` environment |
-| mpi4py | built from source with the Cray compiler wrapper `cc` |
+| OpenMM | 8.6.1 (conda-forge `openmm`) |
+| Environment module | `PDC` (Cray MPICH, compilers) |
+| ROCm module | `rocm/6.4.4` (the default `rocm/7.x` does not work) |
+| mpi4py | `MPICC="cc -shared"` build |
 
-Each MI250X is two GPUs (GCDs), so a GPU node has eight; run one walker
-per GCD.
+Each MI250X is two GPUs (GCDs), so a GPU node has eight.
 
 ### Install (login node)
 
@@ -87,9 +98,10 @@ real system and reports its speed per walker.
 
 ### Submit
 
-[`examples/dardel_mwsumd.slurm`](../examples/dardel_mwsumd.slurm) runs
-eight walkers on one node. The input file sets `platform = HIP`,
-`parallel = mpi`, `mpi_mode = multi_gpu` and `walkers = 8`.
+In [`examples/gpu_node.slurm`](../examples/gpu_node.slurm) use
+`-p gpu`, `--ntasks-per-node=8`, `--gpus-per-node=8` and
+`module load PDC rocm/6.4.4`, with `platform = HIP`, `parallel = mpi`,
+`mpi_mode = multi_gpu` and `walkers = 8` in the input file.
 
 ### Common errors
 
