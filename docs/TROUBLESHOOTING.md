@@ -142,10 +142,10 @@ folder holds a previous run. Choose another `output_dir`, or add
 `--overwrite` to replace it. The output of `--dry-run` is replaced
 without `--overwrite`.
 
-**Every cycle says `accepted` in a multiple-walker run.** mwSuMD always
-continues from the best walker, so cycles are accepted even when the
-metric moved away from the target. Follow the metric values on each
-progress line; `walker_acceptance = sumd` repeats a cycle whose best
+**A multiple-walker run never rejects a cycle.** mwSuMD always continues
+from the best walker, so every cycle creates an AcceptedStep, even when
+the metric moved away from the target. Follow the metric values in the
+progress table; `walker_acceptance = sumd` repeats a cycle whose best
 walker made no progress.
 
 **Where are the values of the walkers that were not kept?** Progress

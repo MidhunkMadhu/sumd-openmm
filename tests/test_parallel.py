@@ -255,12 +255,13 @@ def test_mpirun_three_ranks(tmp_path):
 
 def test_progress_line_reports_walker_and_metrics(tmp_path):
     out, runner, scfg = run_fake(tmp_path, LocalExecutor, 3, walker_score="smscore", max_cycles=2)
-    lines = [l for l in open(os.path.join(out, "progress.log")) if "] cycle " in l]
-    assert len(lines) == 2
-    first = lines[0]
-    assert "cycle 1/2 from AcceptedStep 0: walker w" in first and "of 3 accepted -> AcceptedStep 1" in first
-    assert "metric_1 " in first and " A (" in first
-    assert "by walker" not in first
+    log = open(os.path.join(out, "progress.log")).read().splitlines()
+    header = next(l for l in log if "cycle" in l and "walker" in l and "metric_1 (A)" in l)
+    rows = log[log.index(header) + 1:log.index(header) + 3]
+    assert "AcceptedStep" not in header and "result" not in header   # mwSuMD: one kept per cycle
+    for cycle, row in enumerate(rows, 1):
+        fields = row.split()
+        assert fields[1] == str(cycle) and fields[2].startswith("w") and "(" in fields[4]
 
 
 def test_tables_record_every_window_and_sample(tmp_path):
@@ -280,7 +281,7 @@ def test_tables_record_every_window_and_sample(tmp_path):
     assert steps[0]["restart_file"] == "accepted_steps/accepted_step_000000.xml"
     assert "md_step" in steps[0]
     log = open(os.path.join(out, "progress.log")).read()
-    assert "all walkers rejected, best w" in log and "(2 of 8 retries from AcceptedStep 0 used)" in log
+    assert "AcceptedStep  walker  result" in log and "rejected 2/8" in log
 
 
 def test_samples_table_can_be_switched_off(tmp_path):

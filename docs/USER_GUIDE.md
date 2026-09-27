@@ -32,26 +32,44 @@ simulations.
 ## Reading the progress log
 
 `output_dir/progress.log` (also printed to the screen) starts with one
-line per metric, giving its selections and initial value, followed by
-one line per cycle:
+line per metric, giving its selections and initial value, then prints
+one table row per cycle. Columns appear only when they carry
+information.
+
+With several walkers (mwSuMD), every cycle keeps its best walker and
+creates one AcceptedStep, numbered like the cycle:
 
 ```
-metric ligand_rmsd (rmsd_displacement, supervise, decrease to 2): a = :314&!@H= -> 27 atoms in P0G314; fit = :1-313@CA -> 313 atoms in ASP1..CYS313 (313 residues); reference ref.pdb; initial 32.25
-cycle 7/100 from AcceptedStep 6: walker w3 of 8 accepted -> AcceptedStep 7 | ligand_rmsd 28.41 A (-0.60)
-cycle 8/100 from AcceptedStep 7: all walkers rejected, best w5 (1 of 8 retries from AcceptedStep 7 used) | ligand_rmsd 28.77 A (+0.36)
+          cycle  walker  ligand_rmsd (A)
+00:31:12    186      w4    6.65 (+0.14)
+00:31:41    187      w3    6.74 (+0.08)
+00:32:10    188      w4    6.39 (-0.34)
 ```
 
-| Part | Meaning |
+With one walker (SuMD), a cycle can be rejected, so the table also shows
+the AcceptedStep created (`-` when none) and the result:
+
+```
+          cycle  AcceptedStep  result          ligand_rmsd (A)
+00:12:03     14             8  accepted         18.88 (-1.09)
+00:12:31     15             -  rejected 1/8     18.95 (+0.07)
+00:12:59     16             9  accepted         18.41 (-0.47)
+```
+
+| Column | Meaning |
 | --- | --- |
-| `cycle 7/100` | Cycle number and `max_cycles` |
-| `from AcceptedStep 6` | AcceptedStep the windows started from |
-| `walker w3 of 8 accepted -> AcceptedStep 7` | Walker whose window was kept (`w3` matches the `_w3` window files and the `walker` columns of the tables) and the AcceptedStep it produced; `converged` when the target is reached |
-| `all walkers rejected, best w5 (1 of 8 retries from AcceptedStep 7 used)` | No window was kept; the next cycle starts again from AcceptedStep 7. After `max_retries_per_parent` (8) rejections from one step, `on_retry_exhaustion` applies |
-| `ligand_rmsd 28.41 A (-0.60)` | Every metric at the end of the kept window, and its change from the starting state |
+| time | Wall-clock time at the end of the cycle |
+| `cycle` | Cycle number |
+| `AcceptedStep` | The AcceptedStep created by this cycle, or `-` |
+| `walker` | The walker kept (`w4` matches the `_w4` window files and the `walker` columns of the tables) |
+| `result` | `accepted`, `converged`, `rejected n/N` (n of the N retries allowed from the current AcceptedStep), `retry limit`, or `best retry` (the best rejected window kept after the retry limit) |
+| one column per metric | Value at the end of the kept window (or the best window of a rejected cycle) and its change from the starting AcceptedStep |
 
-With several walkers and the default `walker_acceptance = always`, every
-cycle is accepted: the best walker is always continued, even when the
-metric moved the wrong way. Progress shows in the metric values.
+A note after a row marks unusual events: `from AcceptedStep 12` when a
+cycle starts elsewhere than the last AcceptedStep, `back to AcceptedStep
+12` after the retry limit with `on_retry_exhaustion = step_back`, and
+`converged` when the target is reached.
+
 `accepted_steps.csv` holds the metric values of every AcceptedStep,
 `windows.csv` those of every window of every walker, kept or not, and
 `cv_samples.csv` every sample along every window ([outputs](OUTPUTS.md)).

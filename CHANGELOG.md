@@ -5,6 +5,17 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## 0.5.0 (2026-09-28)
+
+Changed
+- `progress.log` prints the cycles as a table: time, cycle, walker kept
+  and each metric with its change. The AcceptedStep and result columns
+  appear only when cycles can be rejected (one walker, or
+  `walker_acceptance = sumd`); notes mark a different starting
+  AcceptedStep, a return after the retry limit, and convergence.
+- The retry limit with `on_retry_exhaustion = step_back` is reported as
+  `back to AcceptedStep N`.
+
 ## 0.4.0 (2026-09-27)
 
 Added

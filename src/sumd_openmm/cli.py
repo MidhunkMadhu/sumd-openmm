@@ -79,6 +79,13 @@ class RunLog:
         print(line, flush=True)
         self.progress.write(line + "\n")
 
+    def row(self, text, stamp=True):
+        """A table row, stamped with the time only (the date is in the lines above)."""
+        prefix = datetime.datetime.now().strftime("%H:%M:%S") if stamp else " " * 8
+        line = "%s  %s" % (prefix, text)
+        print(line, flush=True)
+        self.progress.write(line + "\n")
+
     def window(self, row):
         self.windows.write(json.dumps(row, default=_json, allow_nan=False) + "\n")
         data = {name: _round(row["metric_final"][name]) for name in self.names}
@@ -281,6 +288,9 @@ class SumdRun:
         return verdict, reason
 
     def run(self):
+        self.table_layout()
+        getattr(self.log, "row", self.log)(self.table_header(), stamp=False) \
+            if hasattr(self.log, "row") else self.log(self.table_header())
         root = self.x.root(os.path.join(self.out, self.xml_rel(0)))
         root_memory = {m.name: float(root["metrics"][m.number - 1])
                        for m in self.supervised if m.type == "dihedral"
@@ -341,7 +351,7 @@ class SumdRun:
                         previous = self.nodes[parent]["parent"]
                         if self.s.on_retry_exhaustion == "step_back" and previous is not None:
                             parent = previous
-                            action = "step back after retry limit"
+                            action = "back to AcceptedStep %d" % previous
                             self.drop_dcd(held["dcd_tmp"])
                             held = None
                         else:
@@ -393,7 +403,8 @@ class SumdRun:
                     walker_score=self.s.walker_score, score=_finite(scores[result["w"]]),
                     cell_chosen=list(cell) if cell is not None else None,
                     cell_visit_count=visits))
-            self.log(self.cycle_report(cycle, batch_parent, batch, chosen, accepted, verdict, action, child))
+            getattr(self.log, "row", self.log)(
+                self.cycle_report(cycle, batch_parent, batch, chosen, accepted, verdict, action, child))
             if verdict == "converged" and decision == "converged":
                 if self.s.supervision == "multistep" and self.stage < len(self.s.stages) - 1:
                     self.stage += 1
@@ -412,32 +423,64 @@ class SumdRun:
     def best_node(self):
         return min(self.nodes, key=lambda i: self.nodes[i]["progress"])
 
-    def _value(self, spec, value):
-        if spec.type == "contacts":
-            return "%d" % value
-        return "%.2f %s" % (value, "deg" if spec.type in ("angle", "dihedral") else "A")
+    def _unit(self, spec):
+        return "" if spec.type == "contacts" else " (deg)" if spec.type in ("angle", "dihedral") else " (A)"
+
+    def table_layout(self):
+        """Columns of the per-cycle table; only those that carry information."""
+        self.show_walker = self.s.walkers > 1
+        self.show_result = not self.s.extends_best_walker
+        self.show_step = self.show_result          # otherwise every cycle makes AcceptedStep = cycle
+        self.cv_width = [max(len(m.name + self._unit(m)), 14) for m in self.s.metrics]
+        self.cycle_width = max(5, len(str(self.s.max_cycles)))
+        self.expected_start = 0
+
+    def table_header(self):
+        cols = ["%*s" % (self.cycle_width, "cycle")]
+        if self.show_step:
+            cols.append("AcceptedStep")
+        if self.show_walker:
+            cols.append("walker")
+        if self.show_result:
+            cols.append("%-12s" % "result")
+        cols += ["%*s" % (w, m.name + self._unit(m)) for m, w in zip(self.s.metrics, self.cv_width)]
+        return "  ".join(cols)
 
     def cycle_report(self, cycle, parent, batch, chosen, accepted, verdict, action, child):
-        """One progress line: outcome, walker, every metric and its change."""
+        """One table row: cycle, AcceptedStep made, walker, result, every metric and its change."""
         shown = accepted if accepted is not None else chosen
-        who = "walker w%d of %d" % (shown["w"], len(batch)) if len(batch) > 1 else "window"
+        notes = []
+        if parent != self.expected_start:
+            notes.append("from AcceptedStep %d" % parent)
+        used = self.retries.get(parent, 0)
         if accepted is None:
-            outcome = ("window rejected" if len(batch) == 1 else
-                       "all walkers rejected, best w%d" % chosen["w"])
+            result = "rejected"
             if not self.pool:
-                outcome += " (%d of %d retries from AcceptedStep %d used)" % (
-                    self.retries.get(parent, 0), self.s.max_retries_per_parent, parent)
+                result = ("retry limit" if used > self.s.max_retries_per_parent else
+                          "rejected %d/%d" % (used, self.s.max_retries_per_parent))
+            if action:
+                notes.append(action)
         elif accepted is not chosen:
-            outcome = "%s -> AcceptedStep %d (%s of cycle %d)" % (action, child, who, accepted["cycle"])
+            result = "best retry"
+            notes.append("%s: kept the best rejected window (cycle %d)"
+                         % (action.split(";")[0], accepted["cycle"]))
         else:
-            outcome = "%s %s -> AcceptedStep %d" % (who, "converged" if verdict == "converged" else "accepted",
-                                              child)
-        if action and accepted is None:
-            outcome += "; " + action
+            result = "converged" if verdict == "converged" else "accepted"
+        if verdict == "converged" and not self.show_result:
+            notes.append("converged")
+        self.expected_start = child if child is not None else parent
         before = self.nodes[parent]["metrics"]
-        values = ", ".join("%s %s (%+.2f)" % (m.name, self._value(m, v), v - before[m.name])
-                           for m, v in zip(self.s.metrics, shown["metrics_final"]))
-        return "cycle %d/%d from AcceptedStep %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
+        cols = ["%*d" % (self.cycle_width, cycle)]
+        if self.show_step:
+            cols.append("%12s" % (child if child is not None else "-"))
+        if self.show_walker:
+            cols.append("%6s" % ("w%d" % shown["w"]))
+        if self.show_result:
+            cols.append("%-12s" % result)
+        for m, w, v in zip(self.s.metrics, self.cv_width, shown["metrics_final"]):
+            value = "%d" % v if m.type == "contacts" else "%.2f" % v
+            cols.append("%*s" % (w, "%s (%+.2f)" % (value, v - before[m.name])))
+        return "  ".join(cols) + ("   " + "; ".join(notes) if notes else "")
 
     def path_to(self, node_id):
         path = []
