@@ -36,15 +36,31 @@ states saved by a run to seed unbiased simulations for those.
 
 ## Install
 
+To install from the public GitHub repository without cloning it yourself:
+
+```bash
+conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git
+conda activate sumd-openmm
+python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
+sumd-openmm --help
+```
+
+Git and pip fetch the package automatically. The repository must be public
+for this command to work without GitHub credentials. The package is not yet
+published on a Conda channel, so Conda installs OpenMM and its scientific
+dependencies while pip installs sumd-openmm from GitHub.
+
+If you have a local checkout and want an editable installation instead:
+
 ```bash
 conda env create -f environment.yml
 conda activate sumd-openmm
-pip install -e .
+python -m pip install -e .
 sumd-openmm --help
 ```
 
 An existing OpenMM environment can install the Python requirements with
-`pip install -e .`. Install `mpi4py` against the MPI library used to launch
+`python -m pip install -e .`. Install `mpi4py` against the MPI library used to launch
 parallel runs. VMD-like selections require `MDAnalysis`.
 
 ## Quick start
