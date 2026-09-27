@@ -51,6 +51,22 @@ def _mindist(metric, X, box):
     return cv.min_distance(X, metric.groups["a"], metric.groups["b"], box)
 
 
+def _contacts(metric, X, box):
+    """Atom pairs (one atom from a, one from b) closer than the cutoff."""
+    A, B = X[metric.groups["a"]], X[metric.groups["b"]]
+    orthorhombic = box is not None and np.allclose(box, np.diag(np.diag(box)))
+    lengths = np.diag(box) if orthorhombic else None
+    cutoff2, count = metric.spec.cutoff ** 2, 0
+    for start in range(0, len(A), 512):
+        D = B[None, :, :] - A[start:start + 512, None, :]
+        if orthorhombic:
+            D -= lengths * np.round(D / lengths)
+        elif box is not None:
+            D = cv.minimum_image(D.reshape(-1, 3), box)
+        count += int(np.count_nonzero(np.einsum("...i,...i->...", D, D) < cutoff2))
+    return float(count)
+
+
 def _angle(metric, X, box):
     a, b, c = [X[metric.groups[k][0]] for k in "abc"]
     u, v = _vector(b, a, box), _vector(b, c, box)
@@ -83,7 +99,7 @@ def _rmsd_displacement(metric, X, box):
 
 REGISTRY = {"distance": _distance, "distance_axis": _axis, "mindist": _mindist,
             "angle": _angle, "dihedral": _dihedral, "rmsd": _rmsd,
-            "rmsd_displacement": _rmsd_displacement}
+            "rmsd_displacement": _rmsd_displacement, "contacts": _contacts}
 
 
 class Metric:

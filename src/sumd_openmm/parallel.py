@@ -16,7 +16,9 @@ mpi_mode = multi_gpu
     Also covers several nodes with several GPUs each.
     gpu_devices = auto        -> local rank k uses device k; if the scheduler
                                  already binds one GPU per rank
-                                 (CUDA_VISIBLE_DEVICES holds one id), device 0
+                                 (CUDA_VISIBLE_DEVICES, or on AMD GPUs
+                                 ROCR_VISIBLE_DEVICES / HIP_VISIBLE_DEVICES,
+                                 holds one id), device 0
     gpu_devices = 0,1,2,3     -> local rank k uses the k-th listed device
 """
 
@@ -37,12 +39,21 @@ def parse_devices(value):
     return [int(x) for x in v.replace(",", " ").split()]
 
 
+VISIBILITY_VARIABLES = ("CUDA_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES")
+
+
 def visible_devices(env):
-    """Entries of CUDA_VISIBLE_DEVICES, or None if unset."""
-    v = env.get("CUDA_VISIBLE_DEVICES")
-    if v is None or v.strip() == "":
-        return None
-    return [x for x in v.split(",") if x.strip() != ""]
+    """
+    GPUs the scheduler exposes to this process, or None if unrestricted.
+    NVIDIA uses CUDA_VISIBLE_DEVICES; AMD ROCm uses ROCR_VISIBLE_DEVICES
+    (Slurm's --gpu-bind) and HIP_VISIBLE_DEVICES. The most restrictive set wins.
+    """
+    found = []
+    for name in VISIBILITY_VARIABLES:
+        v = env.get(name)
+        if v is not None and v.strip() != "":
+            found.append([x for x in v.split(",") if x.strip() != ""])
+    return min(found, key=len) if found else None
 
 
 def assign_device(mode, gpu_devices, local_rank, local_size, env, host="this node"):
@@ -77,7 +88,7 @@ def assign_device(mode, gpu_devices, local_rank, local_size, env, host="this nod
 
     if vis is not None and local_size > len(vis):
         raise LayoutError(
-            "%d ranks on %s but CUDA_VISIBLE_DEVICES exposes %d GPUs (%s)"
+            "%d ranks on %s but the GPU visibility variables expose %d GPUs (%s)"
             % (local_size, host, len(vis), ",".join(vis)))
 
     return str(local_rank)

@@ -19,9 +19,12 @@ simulation), so build_simulation() below mirrors it section by section
 -> Langevin integrator -> platform -> Simulation -> coordinate_file ->
 velocity policy -> rewrap -> reset).
 
-The one deliberate difference: the Langevin integrator is given an explicit
-random-number seed so a SuMD run is reproducible from random_seed. Every
-other setting comes from the .inp through MD_openmm's parser.
+Deliberate differences: the Langevin integrator is given an explicit
+random-number seed so a SuMD run is reproducible from random_seed; the
+platform may be auto or HIP, and a GPU request never falls back to the CPU;
+and an explicit vdw = Force-switch is also applied to Amber and GROMACS
+topologies (CHARMM force fields exported by CHARMM-GUI, like Amber's
+fswitch). Every other setting comes from the .inp through MD_openmm's parser.
 
 If openmm_production.py is ever refactored into a build_simulation()
 function, re-vendor it and replace build_simulation() here with a call to it.
@@ -29,11 +32,101 @@ function, re-vendor it and replace build_simulation() here with a call to it.
 
 import sys
 
+GPU_PLATFORMS = ("CUDA", "HIP", "OpenCL")
+PLATFORM_ORDER = GPU_PLATFORMS + ("CPU", "Reference")
+
+
+class PlatformError(RuntimeError):
+    pass
+
 
 def load_production_helpers():
     """The bundled MD_openmm helpers (imports OpenMM)."""
     from .md_openmm import production_helpers
     return production_helpers
+
+
+def available_platforms():
+    from openmm import Platform
+    return [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
+
+
+def plugin_failures():
+    from openmm import Platform
+    try:
+        return list(Platform.getPluginLoadFailures())
+    except Exception:
+        return []
+
+
+def choose_platform(requested, enabled, log=print):
+    """
+    Platform name for `platform = requested`.
+
+    auto picks the fastest available (CUDA, HIP, OpenCL, CPU). A GPU request
+    falls back only to another GPU platform: on an AMD node platform = CUDA
+    runs on HIP (or OpenCL), and a node without any GPU platform is an error
+    rather than a silent CPU run.
+    """
+    requested = (requested or "auto").strip()
+    if requested.lower() == "auto":
+        name = next((p for p in PLATFORM_ORDER if p in enabled), None)
+    elif requested in enabled:
+        return requested
+    elif requested in GPU_PLATFORMS:
+        name = next((p for p in GPU_PLATFORMS if p in enabled), None)
+    else:
+        name = None
+    if name is None:
+        failures = plugin_failures()
+        raise PlatformError(
+            "OpenMM platform %s is not available; this OpenMM has %s.%s\n"
+            "NVIDIA GPUs need the CUDA build of OpenMM; AMD GPUs (e.g. MI250X) need the HIP "
+            "platform (conda-forge openmm-hip, or OpenMM built with HIP) and the ROCm "
+            "runtime loaded. Run `sumd-openmm --test` on a compute node to check."
+            % (requested, ", ".join(enabled) or "none",
+               "\nPlugin load failures:\n  " + "\n  ".join(failures) if failures else ""))
+    if requested.lower() != "auto":
+        log("WARNING: platform %s is not available; using %s" % (requested, name))
+    return name
+
+
+def precision(cfg):
+    """GPU precision; cuda_precision is the older name and applies to every GPU platform."""
+    return cfg.get("precision", cfg.get("cuda_precision", "single"))
+
+
+def platform_properties(platform, precision=None, device_index=None, log=print):
+    """Precision and DeviceIndex under the names this platform accepts."""
+    names = set(platform.getPropertyNames())
+    props = {}
+    if precision and "Precision" in names:
+        props["Precision"] = precision
+    if device_index is not None:
+        if "DeviceIndex" in names:
+            props["DeviceIndex"] = str(device_index)
+        else:
+            log("NOTE: DeviceIndex %s ignored on the %s platform" % (device_index, platform.getName()))
+    return props
+
+
+def force_switch(prod, system, inputs):
+    """
+    MD_openmm's CHARMM force switch on an Amber or GROMACS System. It handles
+    plain Lennard-Jones and the (a/r6)^2 - b/r6 NBFIX table these readers
+    write; other custom LJ forms (12-6-4, combination rule 1) are refused.
+    """
+    from types import SimpleNamespace
+    from openmm import CustomNonbondedForce, NonbondedForce
+
+    customs = [f for f in system.getForces() if isinstance(f, CustomNonbondedForce)]
+    if len(customs) > 1 or any(f.getNumTabulatedFunctions() != 2 or
+                               not f.getEnergyFunction().startswith("(a/r6)^2-b/r6")
+                               for f in customs):
+        raise ValueError("vdw = Force-switch supports standard or NBFIX Lennard-Jones only; "
+                         "this topology has %s" % ", ".join(f.getEnergyFunction() for f in customs))
+    group = next(f.getForceGroup() for f in system.getForces() if isinstance(f, NonbondedForce))
+    return prod.vfswitch(system, SimpleNamespace(NONBONDED_FORCE_GROUP=group), inputs)
 
 
 def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
@@ -57,14 +150,10 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
     integrator = LangevinIntegrator(temperature * kelvin, friction / picosecond, dt * picoseconds)
     integrator.setRandomNumberSeed(int(integrator_seed))
     requested = cfg.get("platform", "CUDA")
-    enabled = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
-    name = requested if requested in enabled else next(p for p in ("CUDA", "OpenCL", "CPU", "Reference") if p in enabled)
-    if name != requested:
-        log("Requested platform %s unavailable; using %s" % (requested, name))
-    props = {"CudaPrecision": cfg.get("cuda_precision", "single")} if name == "CUDA" else {}
-    if device_index is not None and name in ("CUDA", "OpenCL"):
-        props["DeviceIndex"] = str(device_index)
-    sim = Simulation(top.topology, system, integrator, Platform.getPlatformByName(name), props)
+    name = choose_platform(requested, available_platforms(), log)
+    platform = Platform.getPlatformByName(name)
+    props = platform_properties(platform, precision(cfg), device_index, log)
+    sim = Simulation(top.topology, system, integrator, platform, props)
     kind = "structure"
     if crdfile and crdfile.lower().endswith(".xml"):
         with open(crdfile) as fh:
@@ -126,7 +215,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     fftype = prod.get_str(cfg, "force_field", "AMBER").upper()
 
     platform_request = prod.get_str(cfg, "platform", "CUDA")
-    cuda_precision = prod.get_str(cfg, "cuda_precision", "single")
+    cuda_precision = precision(cfg)
 
     topfile = prod.get_str(cfg, "topology_file", required=True)
     crdfile = prod.get_str(cfg, "coordinate_file", required=True)
@@ -159,10 +248,17 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
 
     elif fftype == "GROMACS":
         params = None
-        if prod.detect_coordinate_file_type(crdfile) == "gromacs_gro":
+        kind = prod.detect_coordinate_file_type(crdfile)
+        if kind == "gromacs_gro":
             gro = GromacsGroFile(crdfile)
             top = GromacsTopFile(topfile, periodicBoxVectors=gro.getPeriodicBoxVectors(),
                                  includeDir=gmx_include)
+        elif kind == "openmm_xml_state":
+            # e.g. the State saved after equilibration: PME needs its box here
+            from openmm import XmlSerializer
+            with open(crdfile) as fh:
+                box = XmlSerializer.deserialize(fh.read()).getPeriodicBoxVectors()
+            top = GromacsTopFile(topfile, periodicBoxVectors=box, includeDir=gmx_include)
         else:
             top = GromacsTopFile(topfile, includeDir=gmx_include)
 
@@ -189,6 +285,14 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
 
     if fftype == "CHARMM" and inputs.vdw == "Force-switch":
         system = prod.vfswitch(system, top, inputs)
+    elif inputs.vdw == "Force-switch" and "vdw" in cfg:
+        system = force_switch(prod, system, inputs)
+        log("vdw = Force-switch: LJ force switched from %.3g to %.3g nm on the %s topology "
+            "(Amber fswitch)" % (inputs.r_on, inputs.r_off, fftype))
+    elif inputs.vdw == "Force-switch":
+        log("NOTE: MD_openmm's default vdw = Force-switch applies only to CHARMM topologies; this "
+            "%s system truncates LJ at %.3g nm. Write vdw = Force-switch to switch it, e.g. for "
+            "CHARMM force fields in Amber or GROMACS format." % (fftype, inputs.r_off))
 
     if inputs.lj_lrc == "yes":
         for force in system.getForces():
@@ -223,24 +327,9 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                                     inputs.dt * picoseconds)
     integrator.setRandomNumberSeed(int(integrator_seed))
 
-    enabled = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
-
-    if platform_request in enabled:
-        platform_name = platform_request
-    else:
-        platform_name = next((p for p in ("CUDA", "OpenCL", "CPU") if p in enabled), None)
-        if platform_name is None:
-            sys.exit("Error: no usable OpenMM platform found.")
-        log("Requested platform %s not available; falling back to %s." % (platform_request, platform_name))
-
+    platform_name = choose_platform(platform_request, available_platforms(), log)
     platform = Platform.getPlatformByName(platform_name)
-    prop = dict(CudaPrecision=cuda_precision) if platform_name == "CUDA" else dict()
-
-    if device_index is not None:
-        if platform_name in ("CUDA", "OpenCL"):
-            prop["DeviceIndex"] = str(device_index)
-        else:
-            log("NOTE: DeviceIndex %s ignored on the %s platform" % (device_index, platform_name))
+    prop = platform_properties(platform, cuda_precision, device_index, log)
 
     simulation = Simulation(topology, system, integrator, platform, prop)
 

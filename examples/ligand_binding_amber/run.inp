@@ -1,0 +1,47 @@
+# Ligand binding by SuMD: the supervisedmdamber test system on OpenMM.
+# CHARMM36m receptor-ligand complex in a POPC membrane, exported in Amber
+# format by CHARMM-GUI. The right column gives the supervisedmdamber
+# (input_parameters.in / sumd.mdin) setting each line reproduces.
+#
+#   sumd-openmm run.inp --dry-run     # selections and initial RMSD
+#   sumd-openmm run.inp --test        # two short cycles in sumd_run_test
+#   sumd-openmm run.inp
+
+force_field = AMBER                       # AMBER_PARAMETER_FILE
+topology_file = example.parm7
+coordinate_file = example.rst7            # RESTART_FILE
+genvel = no                               # irest=1, ntx=5: velocities from the restart
+platform = auto                           # CUDA on NVIDIA, HIP on AMD (Dardel), else OpenCL/CPU
+
+temp = 310                                # temp0=310
+fric_coeff = 5                            # ntt=3, gamma_ln=5
+dt = 0.002                                # TIMESTEP_FS=2
+cons = HBonds                             # ntc=2, ntf=2
+coulomb = PME
+vdw = Force-switch                        # fswitch=10, cut=12
+r_on = 1.0
+r_off = 1.2
+pcouple = no                              # ntb=1, ntp=0 (NVT)
+method = cMD                              # METHOD=cMD
+
+window_ps = 20                            # TIME_WINDOW_PS=20
+cv_sample_ps = 0.04                       # MDOUTSTEP=TRAJOUTSTEP=20 steps
+dcd_stride = 25                           # save one frame per ps; 1 keeps all 500 (400 MB/window)
+slope_points = 5                          # extract_and_fit.py: five points per window
+max_cycles = 100                          # MAXSTEP=100
+max_retries_per_parent = 100              # the Amber driver retries until MAXSTEP
+retry_velocities = keep                   # retries restart from prev_restart.rst7 velocities
+random_seed = 2026
+output_dir = sumd_run                     # TRAJOUTNAME -> sumd_run/sumd_traj.dcd
+
+selection_syntax = cpptraj
+metric_1_name = ligand_rmsd
+metric_1_type = rmsd_displacement         # fit.cppin then calc_rmsd.cppin (rms ... nofit)
+metric_1_fit = :1-313@CA                  # FIT_TRAJ_STRING
+metric_1_reference_fit = :1-313@CA        # FIT_PDB_STRING
+metric_1_a = :314&!@H=                    # CALCRMSD_TRAJ_STRING
+metric_1_reference_a = :314&!@H=          # CALCRMSD_PDB_STRING
+metric_1_reference = ref_example.pdb      # PDBALIGN
+metric_1_role = supervise
+metric_1_direction = decrease
+metric_1_target = 2.0                     # COLVARCUT=2.0

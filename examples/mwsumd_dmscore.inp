@@ -1,0 +1,47 @@
+# mwSuMD as in Deganutti et al. (2025), GLP-1R:PF06882961 first phase:
+# five walkers of 100 ps per batch; DMscore on the ligand-pocket distance
+# and on the extracellular domain RMSD, fitted on a stable part of the
+# receptor; stop when the distance reaches 4 A. Replace selections with
+# those of your system.
+force_field = AMBER
+topology_file = system.parm7
+coordinate_file = system.rst7
+platform = auto
+temp = 310
+dt = 0.002
+vdw = Force-switch
+
+window_ps = 100
+cv_sample_ps = 1
+max_cycles = 1000
+random_seed = 1
+output_dir = mwsumd_phase1
+parallel = mpi
+mpi_mode = multi_gpu
+walkers = 5
+supervision = combined
+walker_score = dmscore
+
+metric_1_name = ligand_site
+metric_1_type = distance
+metric_1_a = :LIG&!@H=
+metric_1_b = :379-381@CA
+metric_1_role = supervise
+metric_1_direction = decrease
+metric_1_target = 4
+
+metric_2_name = ecd_rmsd
+metric_2_type = rmsd_displacement
+metric_2_fit = :170-240@CA
+metric_2_a = :33-120@CA
+metric_2_reference = active.pdb
+metric_2_role = supervise
+metric_2_direction = decrease
+metric_2_target = 1000        # always met: only the distance ends the phase
+
+metric_3_name = ligand_contacts
+metric_3_type = contacts
+metric_3_a = :LIG&!@H=
+metric_3_b = !:LIG&!:WAT,HOH,TIP3,POPC,SOD,CLA&!@H=
+metric_3_cutoff = 4
+metric_3_role = monitor

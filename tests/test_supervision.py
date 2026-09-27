@@ -48,3 +48,22 @@ def test_combined_and_multimetric_scores():
     assert smscore([4, 2]) == pytest.approx(np.sqrt(6))
     trends = [type("Trend", (), {"slope": -1}), type("Trend", (), {"slope": 1})]
     assert pick_best_walker("slope", trends, [x, x], [a, b])[0] == 0
+
+
+def test_dmscore_is_equation_2():
+    """DMscore = ((X'last / mean X' - 1) + (X''last / mean X'' - 1)) * 100, sign -1 if decreasing."""
+    up = MetricSpec(1, "up", "distance", "supervise", "increase", 10.0)
+    down = MetricSpec(2, "down", "rmsd", "supervise", "decrease", 1.0)
+    walkers = [np.array([[4.0, 6.0], [6.0, 4.0]]), np.array([[2.0, 8.0], [4.0, 6.0]])]
+    mean = np.concatenate(walkers).mean(axis=0)                  # over every walker in the batch
+    expected = [100 * ((w[-1, 0] / mean[0] - 1) - (w[-1, 1] / mean[1] - 1)) for w in walkers]
+    assert dmscores(walkers, [up, down]) == pytest.approx(expected)
+    assert pick_best_walker("dmscore", None, walkers, [up, down])[0] == 0
+
+
+def test_smscore_is_equation_1():
+    x = np.array([[5.0], [4.0], [3.0]])
+    assert smscore(x[:, 0]) == pytest.approx(np.sqrt(3.0 * 4.0))
+    spec = MetricSpec(1, "d", "distance", "supervise", "decrease", 2.0)
+    best, scores = pick_best_walker("smscore", None, [x, x + 1], [spec])
+    assert best == 0 and scores[0] < scores[1]

@@ -38,7 +38,7 @@ def _bool(value, key):
 TYPES = {
     "distance": "ab", "distance_axis": "ab", "mindist": "ab",
     "angle": "abc", "dihedral": "abcd", "rmsd": "a",
-    "rmsd_displacement": "a",
+    "rmsd_displacement": "a", "contacts": "ab",
 }
 EXTRAS = {"name", "type", "role", "direction", "target", "tolerance",
           "target_delta", "bins", "weight", "mu", "sigma"}
@@ -60,12 +60,15 @@ class MetricSpec:
     d: Optional[str] = None
     fit: Optional[str] = None
     reference: Optional[str] = None
+    reference_a: Optional[str] = None
+    reference_fit: Optional[str] = None
     axis: Optional[str] = None
     signed: bool = True
     bins: Optional[str] = None
     weight: float = 1.0
     mu: Optional[float] = None
     sigma: Optional[float] = None
+    cutoff: float = 4.0
     expect: dict = field(default_factory=dict)
 
 
@@ -88,9 +91,11 @@ def parse_metrics(cfg):
         if kind == "distance_axis":
             valid |= {"axis", "signed"}
         if kind in ("rmsd", "rmsd_displacement"):
-            valid.add("reference")
+            valid |= {"reference", "reference_a"}
         if kind == "rmsd_displacement":
-            valid.add("fit")
+            valid |= {"fit", "reference_fit"}
+        if kind == "contacts":
+            valid.add("cutoff")
         unknown = set(data) - valid
         if unknown:
             raise ConfigError("%s: unknown keys %s; valid keys: %s" %
@@ -125,14 +130,19 @@ def parse_metrics(cfg):
             return float(data[key]) if key in data else default
         spec = MetricSpec(n, name, kind, role, direction, num("target"),
                           num("tolerance"), num("target_delta"),
-                          **{key: data.get(key) for key in ("a", "b", "c", "d", "fit", "reference", "axis", "bins")},
+                          **{key: data.get(key) for key in ("a", "b", "c", "d", "fit", "reference",
+                                                             "reference_a", "reference_fit",
+                                                             "axis", "bins")},
                           signed=_bool(data.get("signed", "yes"), label + "signed"),
                           weight=num("weight", 1.0), mu=num("mu"), sigma=num("sigma"),
+                          cutoff=num("cutoff", 4.0),
                           expect={key[7:]: value for key, value in data.items() if key.startswith("expect_")})
         if spec.tolerance is not None and spec.tolerance <= 0:
             raise ConfigError(label + "tolerance must be positive")
         if spec.sigma is not None and spec.sigma <= 0:
             raise ConfigError(label + "sigma must be positive")
+        if spec.cutoff <= 0:
+            raise ConfigError(label + "cutoff must be positive")
         specs.append(spec)
     return specs
 
@@ -140,14 +150,17 @@ def parse_metrics(cfg):
 _CHOICES = {
     "selection_syntax": ("cpptraj", "vmd"), "supervision": ("single", "combined", "multistep"),
     "seeding": ("chain", "stratified"), "on_retry_exhaustion": ("accept_best", "step_back"),
-    "retry_velocities": ("reassign", "keep"), "slope_points": ("all", "5"),
+    "retry_velocities": ("auto", "reassign", "keep"),
+    "walker_acceptance": ("always", "sumd"), "slope_points": ("all", "5"),
     "walker_score": ("slope", "smscore", "dmscore"), "parallel": ("serial", "mpi"),
     "mpi_mode": ("multi_node", "multi_gpu"), "method": ("cMD", "GaMD"),
+    "equilibration": ("none", "charmm-gui"), "charmm_gui_format": ("auto", "amber", "gromacs"),
 }
 _MD_KEYS = set("""force_field system_xml topology_file coordinate_file toppar_file
 gmx_include dt temp fric_coeff pcouple p_type cons coulomb vdw r_on r_off platform
-cuda_precision genvel continuation rewrap_coordinates reset_step_and_time lj_lrc
-e14scale rest restraint_file restraint_k nstep ewald_Tol barostat_freq pressure""".split())
+cuda_precision precision genvel continuation rewrap_coordinates reset_step_and_time lj_lrc
+e14scale rest restraint_file restraint_k nstep ewald_Tol barostat_freq pressure p_ref p_freq
+p_XYMode p_ZMode p_tens nstout nstdcd""".split())
 
 
 @dataclass
@@ -165,7 +178,8 @@ class SumdConfig:
     max_cycles: int = 500
     max_retries_per_parent: int = 8
     on_retry_exhaustion: str = "accept_best"
-    retry_velocities: str = "reassign"
+    retry_velocities: str = "auto"
+    walker_acceptance: str = "always"
     require_significant_slope: bool = False
     slope_points: str = "all"
     random_seed: Optional[int] = None
@@ -176,6 +190,10 @@ class SumdConfig:
     gpu_devices: str = "auto"
     method: str = "cMD"
     output_dir: str = "sumd_run"
+    equilibration: str = "none"
+    charmm_gui_dir: Optional[str] = None
+    charmm_gui_format: str = "auto"
+    equilibration_dir: str = "equilibration"
     dcd_stride: int = 1
     keep_rejected_dcd: bool = False
     restore_check: bool = True
@@ -199,7 +217,7 @@ class SumdConfig:
         for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope"):
             if key in cfg:
                 setattr(c, key, _bool(cfg[key], key))
-        for key in ("output_dir", "gpu_devices"):
+        for key in ("output_dir", "gpu_devices", "charmm_gui_dir", "equilibration_dir"):
             setattr(c, key, cfg.get(key, getattr(c, key)))
         if cfg.get("random_seed"):
             c.random_seed = int(cfg["random_seed"])
@@ -218,6 +236,8 @@ class SumdConfig:
         return c
 
     def validate(self):
+        if self.equilibration == "charmm-gui" and not self.charmm_gui_dir:
+            raise ConfigError("equilibration = charmm-gui needs charmm_gui_dir")
         if self.method == "GaMD":
             raise ConfigError("method = GaMD requires a GaMD integrator")
         supervised = [m for m in self.metrics if m.role == "supervise"]
@@ -243,6 +263,8 @@ class SumdConfig:
             raise ConfigError("score modes need more than one walker")
         if self.seeding == "stratified" and self.walker_score == "dmscore":
             raise ConfigError("stratified seeding with dmscore is incompatible")
+        if self.walker_acceptance == "sumd" and self.walker_score != "slope":
+            raise ConfigError("walker_acceptance = sumd applies to walker_score = slope")
         n = self.window_ps / self.cv_sample_ps
         if self.window_ps <= 0 or self.cv_sample_ps <= 0 or abs(n - round(n)) > 1e-6 or n < 3:
             raise ConfigError("window_ps / cv_sample_ps must be an integer >= 3")
@@ -258,6 +280,24 @@ class SumdConfig:
             self.walkers = n_ranks
             self.validate()
         return ["%d MPI ranks idle" % (n_ranks - self.walkers)] if n_ranks > self.walkers else []
+
+    @property
+    def reassign_velocities(self):
+        """
+        New velocities for retries and for walkers other than the one that
+        continues in place. auto: SuMD reassigns (Sabbadin and Moro 2014);
+        mwSuMD keeps the selected walker's velocities for the whole next
+        batch (Deganutti et al. 2025).
+        """
+        if self.retry_velocities == "auto":
+            return self.walkers <= 1
+        return self.retry_velocities == "reassign"
+
+    @property
+    def extends_best_walker(self):
+        """mwSuMD: every batch continues from its best walker."""
+        return (self.walkers > 1 and self.seeding == "chain" and
+                (self.walker_score != "slope" or self.walker_acceptance == "always"))
 
     @property
     def samples_per_window(self):

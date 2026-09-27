@@ -13,3 +13,5 @@ sumd_run*/
 *.chk
 FATAL_rank_*.txt
 .DS_Store
+
+equilibration*/

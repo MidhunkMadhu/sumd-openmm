@@ -2,12 +2,12 @@
 The fitted displacement RMSD must match cpptraj on corresponding images
 "fit on receptor, then rms nofit on ligand" to within 1e-3 A.
 
-Needs cpptraj, ParmEd and a real system. Point these at one, e.g. the
-a separately supplied topology and trajectory:
+Needs cpptraj, ParmEd and a real system. By default the system in
+examples/ligand_binding_amber is used; point these at another:
 
-    export SUMD_TEST_PARM=.../testfolder/example.parm7
-    export SUMD_TEST_RST=.../testfolder/example.rst7
-    export SUMD_TEST_REF=.../testfolder/ref_example.pdb
+    export SUMD_TEST_PARM=.../example.parm7
+    export SUMD_TEST_RST=.../example.rst7
+    export SUMD_TEST_REF=.../ref_example.pdb
     export SUMD_TEST_FIT=":1-313@CA"           # optional, these are the defaults
     export SUMD_TEST_LIG=":314&!@H="
     export SUMD_CPPTRAJ=/path/to/cpptraj       # optional if cpptraj is on PATH
@@ -24,16 +24,18 @@ import pytest
 
 from sumd_openmm import cv as CV
 
-PARM = os.environ.get("SUMD_TEST_PARM")
-RST = os.environ.get("SUMD_TEST_RST")
-REF = os.environ.get("SUMD_TEST_REF")
+EXAMPLE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "examples",
+                       "ligand_binding_amber")
+PARM = os.environ.get("SUMD_TEST_PARM", os.path.join(EXAMPLE, "example.parm7"))
+RST = os.environ.get("SUMD_TEST_RST", os.path.join(EXAMPLE, "example.rst7"))
+REF = os.environ.get("SUMD_TEST_REF", os.path.join(EXAMPLE, "ref_example.pdb"))
 FIT = os.environ.get("SUMD_TEST_FIT", ":1-313@CA")
 LIG = os.environ.get("SUMD_TEST_LIG", ":314&!@H=")
 CPPTRAJ = os.environ.get("SUMD_CPPTRAJ") or shutil.which("cpptraj")
 
 pytestmark = pytest.mark.skipif(
     not (PARM and RST and REF and CPPTRAJ and all(os.path.exists(p) for p in (PARM, RST, REF))),
-    reason="set SUMD_TEST_PARM/RST/REF and have cpptraj available",
+    reason="needs cpptraj and the example system (or SUMD_TEST_PARM/RST/REF)",
 )
 
 

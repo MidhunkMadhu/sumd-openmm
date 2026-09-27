@@ -133,15 +133,17 @@ def resolve(config, topology_file, base_dir="."):
         reference = {}
         if spec.type in ("rmsd", "rmsd_displacement"):
             ref = load_structure(os.path.join(base_dir, spec.reference))
-            ref_a, _ = resolve_one(ref, spec.a, config.selection_syntax,
+            ref_a, _ = resolve_one(ref, spec.reference_a or spec.a, config.selection_syntax,
                                     spec.name + ".reference_a", base_dir)
             _paired(top, ref, groups["a"], ref_a, spec.name + ".a")
             xyz = np.asarray(ref.coordinates, dtype=float)
             reference = {"a": xyz[ref_a]}
+            report["reference"] = dict(file=spec.reference, a=spec.reference_a or spec.a,
+                                       fit=spec.reference_fit or spec.fit)
             if spec.type == "rmsd_displacement":
                 fit, fit_syntax = resolve_one(top, spec.fit, config.selection_syntax,
                                               spec.name + ".fit", base_dir)
-                ref_fit, _ = resolve_one(ref, spec.fit, config.selection_syntax,
+                ref_fit, _ = resolve_one(ref, spec.reference_fit or spec.fit, config.selection_syntax,
                                           spec.name + ".reference_fit", base_dir)
                 _paired(top, ref, fit, ref_fit, spec.name + ".fit")
                 groups["fit"] = fit

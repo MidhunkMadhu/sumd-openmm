@@ -106,3 +106,56 @@ def test_single_atom_validation(tmp_path):
                metric_1_b="indices:1", metric_1_c="indices:2")
     with pytest.raises(SelectionError, match="exactly one atom"):
         resolve(c, str(path))
+
+
+def test_reference_masks_differ_from_topology_masks(tmp_path):
+    """FIT_PDB_STRING / CALCRMSD_PDB_STRING: the reference numbers residues differently."""
+    from sumd_openmm.selection import resolve
+    parmed = pytest.importorskip("parmed")
+
+    def structure(first_resid, shift):
+        s = parmed.Structure()
+        for r in range(4):
+            for name in ("CA", "CB"):
+                s.add_atom(parmed.Atom(name=name, atomic_number=6), "ALA", first_resid + r)
+        s.add_atom(parmed.Atom(name="C1", atomic_number=6), "LIG", first_resid + 4)
+        s.add_atom(parmed.Atom(name="C2", atomic_number=6), "LIG", first_resid + 4)
+        xyz = np.arange(30, dtype=float).reshape(10, 3) ** 1.1
+        xyz[8:] += shift
+        s.coordinates = xyz
+        return s
+
+    structure(1, 0).save(str(tmp_path / "top.pdb"))
+    # reference: two extra residues in front, ligand displaced by 3 A along x
+    ref = structure(1, [3.0, 0, 0])
+    extra = parmed.Structure()
+    for r in range(2):
+        extra.add_atom(parmed.Atom(name="N", atomic_number=7), "GLY", r + 1)
+    extra.coordinates = np.zeros((2, 3))
+    for residue in ref.residues:
+        residue.number += 2
+    (extra + ref).save(str(tmp_path / "ref.pdb"))
+
+    keys = dict(metric_1_type="rmsd_displacement", metric_1_reference="ref.pdb",
+                metric_1_fit=":1-4@CA", metric_1_a=":5", metric_1_role="supervise",
+                metric_1_direction="decrease", metric_1_target="2")
+    with pytest.raises(SelectionError, match="topology atoms|pairing"):
+        resolve(SumdConfig.from_cfg(keys), str(tmp_path / "top.pdb"), str(tmp_path))
+    evaluator, report = resolve(SumdConfig.from_cfg(dict(keys, metric_1_reference_fit=":3-6@CA",
+                                                         metric_1_reference_a=":7")),
+                                str(tmp_path / "top.pdb"), str(tmp_path))
+    assert report[0]["reference"]["a"] == ":7"
+    X = np.asarray(parmed.load_file(str(tmp_path / "top.pdb")).coordinates, float)
+    assert evaluator(X)[0] == pytest.approx(3.0, abs=1e-3)
+
+
+@pytest.mark.parametrize("box", [None, np.diag([20.0, 20.0, 20.0]),
+                                 np.array([[20.0, 0, 0], [5.0, 19.0, 0], [3.0, 4.0, 18.0]])])
+def test_contacts_counts_pairs_within_cutoff(box):
+    rng = np.random.default_rng(5)
+    X = rng.uniform(0, 18, (700, 3))
+    m = metric("contacts", {"a": np.arange(600), "b": np.arange(600, 700)}, cutoff=4.5)
+    from sumd_openmm import cv
+    D = X[600:][None] - X[:600, None]
+    D = cv.minimum_image(D.reshape(-1, 3), box) if box is not None else D.reshape(-1, 3)
+    assert m.value(X, box) == np.count_nonzero((D ** 2).sum(axis=1) < 4.5 ** 2) > 0

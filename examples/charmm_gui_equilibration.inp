@@ -1,0 +1,29 @@
+# Equilibrate a CHARMM-GUI membrane system in OpenMM, then run SuMD.
+# Replace the folder and selections with those of your system.
+#
+#   sumd-openmm run.inp --dry-run    # stages and restraints read from the folder
+#   sumd-openmm run.inp --test       # 50 steps per stage, then two test cycles
+#   sumd-openmm run.inp
+
+equilibration = charmm-gui
+charmm_gui_dir = charmm-gui-1234567890
+charmm_gui_format = amber            # or gromacs
+equilibration_dir = equilibration
+platform = auto
+
+# Production defaults come from step7_production; override here, e.g.
+# fric_coeff = 5
+
+window_ps = 20
+cv_sample_ps = 1
+max_cycles = 500
+random_seed = 11
+output_dir = sumd_run
+
+metric_1_name = ligand_site
+metric_1_type = distance
+metric_1_a = :LIG&!@H=
+metric_1_b = :100,200,300@CA
+metric_1_role = supervise
+metric_1_direction = decrease
+metric_1_target = 4

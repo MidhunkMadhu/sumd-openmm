@@ -27,3 +27,9 @@ stratification cell. Undefined numerical values are JSON null.
 values, band, cell, simulation time, step, potential energy, reason,
 window DCD and State XML path. `sumd-inspect OUTPUT_DIR` checks frame
 identity, State consistency, restore deviations and sampling counts.
+
+With `equilibration = charmm-gui`, `equilibration_dir` (outside
+`output_dir`, so `--overwrite` keeps it) holds `equilibration.log`,
+`protocol.json`, per-stage `.log`, `.dcd` and `.xml` files and
+`equilibrated.xml`/`.rst7`; `run_summary.json` records it under
+`equilibration`. See [equilibration](EQUILIBRATION.md).

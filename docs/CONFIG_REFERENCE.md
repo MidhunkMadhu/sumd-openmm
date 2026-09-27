@@ -13,10 +13,34 @@ Its `force_field`, `topology_file`, `coordinate_file`, `toppar_file`,
 `reset_step_and_time`, `lj_lrc`, `e14scale` and restraint keys
 retain their MD_openmm meaning. See [setup](SETUP_LAYER.md).
 
+`platform` is `auto`, `CUDA`, `HIP`, `OpenCL`, `CPU` or `Reference`.
+`auto` takes the fastest available. A GPU platform that is not available
+is replaced by another GPU platform (CUDA → HIP on AMD nodes), never by
+the CPU; the run stops instead. `precision` (`single`, `mixed`, `double`;
+default `single`, older name `cuda_precision`) applies to every GPU
+platform.
+
+`vdw = Force-switch` written in the input also switches Amber and GROMACS
+topologies between `r_on` and `r_off`, as Amber's `fswitch` does for
+CHARMM force fields exported by CHARMM-GUI. MD_openmm's default applies
+it to CHARMM topologies only, so without the line an Amber topology
+truncates Lennard-Jones at `r_off`.
+
 `force_field = OPENMM_XML` loads `system_xml` (an XmlSerializer System)
 and `topology_file` (PDB or PDBx with initial positions).
 `coordinate_file` optionally provides an OpenMM State XML, checkpoint,
 PDB or PDBx. The System's existing barostat is used.
+
+## Equilibration
+
+| Key | Type; default | Meaning |
+| --- | --- | --- |
+| `equilibration` | none/charmm-gui; none | `none`: `coordinate_file` is already equilibrated. `charmm-gui`: run a CHARMM-GUI protocol first |
+| `charmm_gui_dir` | path | CHARMM-GUI download, or its `amber/` or `gromacs/` folder |
+| `charmm_gui_format` | auto/amber/gromacs; auto | Which folder to use when the download has both |
+| `equilibration_dir` | path; `equilibration` | Stage outputs and `equilibrated.xml`; reused on later runs |
+
+See [equilibration](EQUILIBRATION.md).
 
 ## Metrics
 
@@ -27,12 +51,15 @@ subkeys are errors.
 | Key | Type; default | Meaning |
 | --- | --- | --- |
 | `metric_N_name` | string; `metric_N` | Unique log and CSV column name |
-| `metric_N_type` | required choice | `distance`, `distance_axis`, `mindist`, `angle`, `dihedral`, `rmsd`, `rmsd_displacement` |
+| `metric_N_type` | required choice | `distance`, `distance_axis`, `mindist`, `contacts`, `angle`, `dihedral`, `rmsd`, `rmsd_displacement` |
 | `metric_N_a/b/c/d` | selections; type dependent | Atom selections; `angle` and `dihedral` require exactly one atom in each |
 | `metric_N_fit` | selection; required for `rmsd_displacement` | Group fitted to the reference |
 | `metric_N_reference` | path; required for RMSD types | Coordinate structure with corresponding atom names |
+| `metric_N_reference_a` | selection; `metric_N_a` | Measured atoms in the reference, when its numbering differs |
+| `metric_N_reference_fit` | selection; `metric_N_fit` | Fitted atoms in the reference, when its numbering differs |
 | `metric_N_axis` | `x/y/z` or three numbers | Required for `distance_axis`; normalized internally |
 | `metric_N_signed` | yes/no; yes | Preserve the axis component's sign |
+| `metric_N_cutoff` | Å; 4.0 | `contacts`: atom pairs of `a` and `b` closer than this are counted |
 | `metric_N_role` | supervise/stratify/monitor; monitor | Acceptance, seed selection or logging only |
 | `metric_N_direction` | increase/decrease/toward; required if supervised | Requested change |
 | `metric_N_target` | number; required if supervised | Strictly inside when crossed |
@@ -61,6 +88,7 @@ its centre of geometry. All geometric distances use angstroms.
 | `frontier_bands` | integer; 1 | Additional bands allowed around best reached band |
 | `walkers` | integer or auto; 1 | Auto means one per MPI rank |
 | `walker_score` | slope/smscore/dmscore; slope | Score modes require multiple walkers; dmscore needs at least two supervised metrics |
+| `walker_acceptance` | always/sumd; always | With chain seeding and several walkers, always continue from the best walker (mwSuMD); `sumd` repeats a `slope` batch whose best walker made no progress |
 
 ## Window control and output
 
@@ -71,7 +99,7 @@ its centre of geometry. All geometric distances use angstroms.
 | `max_cycles` | integer; 500 | Maximum number of window batches |
 | `max_retries_per_parent` | integer; 8 | Nonnegative |
 | `on_retry_exhaustion` | accept_best/step_back; accept_best | Behavior after chain retries |
-| `retry_velocities` | reassign/keep; reassign | Reassign uses a logged seed |
+| `retry_velocities` | auto/reassign/keep; auto | auto reassigns single-walker retries (SuMD) and keeps the selected walker's velocities for mwSuMD batches; reassign uses a logged seed |
 | `require_significant_slope` | yes/no; no | Progress acceptance requires slope exceeding twice its standard error |
 | `slope_points` | all/5; all | Five-point estimate requires at least eight samples |
 | `random_seed` | integer; random | Seeds integrators and retries |

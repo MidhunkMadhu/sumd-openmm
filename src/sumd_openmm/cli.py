@@ -166,11 +166,11 @@ class SumdRun:
         if raw.shape[1] != len(self.s.metrics) or not np.all(np.isfinite(raw)):
             raise RuntimeError("cycle %d walker %d: invalid metric samples" %
                                (result["cycle"], result["w"]))
-        if self.s.retry_velocities == "keep":
+        if not self.s.reassign_velocities:
             signature = tuple(np.round(raw.ravel(), 6))
             seen = self.seen_series.setdefault(parent, set())
             if signature in seen:
-                self.log("WARNING: identical retry from node %d; try retry_velocities = reassign" % parent)
+                self.log("WARNING: identical window from node %d; try retry_velocities = reassign" % parent)
             seen.add(signature)
         columns, final_memory = [], {}
         for spec in self.supervised:
@@ -233,7 +233,7 @@ class SumdRun:
                 result["supervised"][-1, index], target,
                 result["trend"].se, self.s.require_significant_slope,
                 "decrease" if spec.direction == "toward" else spec.direction)
-        if self.s.walker_score != "slope":
+        if self.s.extends_best_walker or self.s.walker_score != "slope":
             if self.s.supervision == "multistep":
                 current = self.s.stages[self.stage]
                 index = next(i for i, spec in enumerate(self.supervised) if spec.number == current)
@@ -272,7 +272,7 @@ class SumdRun:
                     held = None
                 parent = entry.node_id
             batch_parent = parent
-            seeds = [self.seed() if self.s.retry_velocities == "reassign" else None
+            seeds = [self.seed() if self.s.reassign_velocities else None
                      for _ in range(self.s.walkers)]
             start = time.time()
             batch = self.x.run_batch(cycle, self.parent_ref(parent), seeds)
@@ -371,8 +371,13 @@ class SumdRun:
         if held:
             self.drop_dcd(held["dcd_tmp"])
         if final is None:
-            final = min(self.nodes, key=lambda i: self.nodes[i]["progress"])
+            # A chain ends at its latest state, as its trajectory does; a pool
+            # has no single chain, so it ends at its most advanced state.
+            final = min(self.nodes, key=lambda i: self.nodes[i]["progress"]) if self.pool else parent
         return final, stop_reason
+
+    def best_node(self):
+        return min(self.nodes, key=lambda i: self.nodes[i]["progress"])
 
     def path_to(self, node_id):
         path = []
@@ -380,6 +385,58 @@ class SumdRun:
             path.append(node_id)
             node_id = self.nodes[node_id]["parent"]
         return path[::-1]
+
+
+def equilibrate(args, scfg, cfg, comm, log, device, root):
+    """
+    Run (rank 0) or skip the CHARMM-GUI equilibration; every rank returns the
+    production settings that start from its final State.
+    """
+    from . import charmmgui
+    from .equilibration import Equilibration, production_settings
+    from .omm_setup import precision
+
+    protocol = charmmgui.read(scfg.charmm_gui_dir, scfg.charmm_gui_format)
+    folder = os.path.abspath(scfg.equilibration_dir)
+    final = os.path.join(folder, "equilibrated.xml")
+    info = dict(format=protocol.format, source=protocol.folder, dir=folder,
+                stages=[stage.describe() for stage in protocol.stages])
+    previous = os.path.join(folder, "protocol.json")
+    if os.path.exists(previous) and not args.test:
+        with open(previous) as fh:
+            done = json.load(fh)
+        if (done.get("format"), done.get("folder")) != (protocol.format, protocol.folder):
+            raise ConfigError("%s holds an equilibration of %s (%s); use another equilibration_dir"
+                              % (folder, done.get("folder"), done.get("format")))
+    if root:
+        if args.test and not args.dry_run:
+            shutil.rmtree(folder, ignore_errors=True)
+        if args.dry_run:
+            log("stage: equilibration (dry run) - CHARMM-GUI %s protocol from %s"
+                % (protocol.format, protocol.folder))
+            for stage in protocol.stages:
+                log("  " + stage.describe())
+        elif os.path.exists(final) and not args.test:
+            log("stage: equilibration already finished; using %s" % final)
+        else:
+            log("stage: equilibration - CHARMM-GUI %s protocol, %d stages, in %s"
+                % (protocol.format, len(protocol.stages), folder))
+            job = Equilibration(protocol, folder, cfg.get("platform", "auto"), precision(cfg),
+                                device, scfg.random_seed, log, test=args.test)
+            try:
+                job.run()
+            finally:
+                job.close()
+    if comm is not None:
+        comm.barrier()
+    if args.dry_run:
+        # the initial structure stands in for the State equilibration will produce
+        cfg = production_settings(protocol, protocol.coordinates, cfg)
+        cfg["genvel"] = "yes"
+    else:
+        cfg = production_settings(protocol, final, cfg)
+    info["equilibrated_xml"] = cfg["coordinate_file"]
+    return cfg, info
 
 
 def run(args, scfg, comm=None):
@@ -427,10 +484,17 @@ def run(args, scfg, comm=None):
     scfg.resolve_walkers(size)
     prod = load_production_helpers()
     cfg = prod.read_key_value_file(args.input_file)
+    equilibrated = None
+    if scfg.equilibration == "charmm-gui":
+        cfg, equilibrated = equilibrate(args, scfg, cfg, comm, log, my_device, root)
     topfile = prod.get_str(cfg, "topology_file", required=True)
     base = os.path.dirname(os.path.abspath(args.input_file))
     evaluator, report = selection.resolve(scfg, topfile, base)
     omm = build_simulation(prod, cfg, seeds[rank], log=log, device_index=my_device)
+    if root and equilibrated and equilibrated["format"] == "AMBER" and not args.dry_run:
+        equilibrated["rst7"] = prod.write_amber_restart(
+            omm.simulation, os.path.join(equilibrated["dir"], "equilibrated.rst7"),
+            netcdf=False, enforce_pbc=True)
     engine = Engine(omm, log)
     initial = engine.current_cvs(evaluator)
     if root:
@@ -457,6 +521,7 @@ def run(args, scfg, comm=None):
     summary = dict(input_file=os.path.abspath(args.input_file), sumd_openmm_version=__version__,
                    sumd_config=scfg.as_dict(), md_config=cfg, metrics=report,
                    parallel=dict(mode=scfg.parallel, ranks=size, walkers=scfg.walkers, layout=layout),
+                   equilibration=equilibrated,
                    engine=dict(dt_ps=omm.dt_ps, temperature_K=omm.temperature_K,
                                platform=omm.platform_name, coordinate_file=omm.crdfile),
                    seeds=dict(random_seed=scfg.random_seed, integrator=seeds),
@@ -471,6 +536,8 @@ def run(args, scfg, comm=None):
     _write_json(summary_path, summary)
     executor = MPIExecutor(comm, worker) if comm is not None else LocalExecutor(worker)
     runner = SumdRun(scfg, executor, outdir, rng, log, initial)
+    log("stage: SuMD production, %d walker(s), up to %d cycles of %g ps"
+        % (scfg.walkers, scfg.max_cycles, scfg.window_ps))
     try:
         final, stop_reason = runner.run()
     finally:
@@ -493,6 +560,8 @@ def run(args, scfg, comm=None):
                                      netcdf=False, enforce_pbc=True)
     summary.update(stop_reason=stop_reason, final_node=final, final_path=path,
                    final_metrics=last["metrics"], n_nodes=len(runner.nodes),
+                   best_node=runner.best_node(),
+                   best_metrics=runner.nodes[runner.best_node()]["metrics"],
                    final_traj=dict(file="sumd_traj.dcd" if dcds else None,
                                    windows=len(dcds), frames=frames),
                    final_state_xml=final_xml, final_state_rst7=rst7)
@@ -501,20 +570,37 @@ def run(args, scfg, comm=None):
     log.close()
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(prog="sumd-openmm", description="Supervised molecular dynamics with OpenMM")
-    ap.add_argument("input_file", help="key = value input file")
+    ap.add_argument("input_file", nargs="?", help="key = value input file")
     ap.add_argument("--dry-run", action="store_true", help="resolve metrics and report initial values")
+    ap.add_argument("--test", action="store_true",
+                    help="without an input file: check OpenMM platforms and run a built-in system; "
+                         "with one: run two short cycles in <output_dir>_test and audit them")
     ap.add_argument("--overwrite", action="store_true", help="replace existing output directory")
     ap.add_argument("--version", action="version", version="%(prog)s " + __version__)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
+    if args.input_file is None:
+        if not args.test:
+            ap.error("an input file is required unless --test is given")
+        from . import selftest
+        sys.exit(selftest.run())
     try:
         config = SumdConfig.from_cfg(read_key_value_file(args.input_file))
+        if args.test:
+            from . import selftest
+            selftest.shorten(config)
+            args.overwrite = True
         comm = None
         if config.parallel == "mpi":
             from mpi4py import MPI
             comm = MPI.COMM_WORLD
         run(args, config, comm)
+        if args.test and not args.dry_run and (comm is None or comm.rank == 0):
+            ok = selftest.audit(os.path.abspath(config.output_dir))
+            print("test run %s: %s" % ("passed" if ok else "FAILED", os.path.abspath(config.output_dir)))
+            if not ok:
+                sys.exit(1)
     except BaseException as exc:
         if "comm" in locals() and comm is not None and comm.size > 1:
             with open(os.path.join(os.path.abspath(config.output_dir),
