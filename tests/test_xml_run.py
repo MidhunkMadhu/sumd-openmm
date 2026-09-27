@@ -46,8 +46,12 @@ def test_xml_run_and_inspection(tmp_path):
     assert dry.returncode == 0, dry.stderr
     with open(tmp_path / "output" / "run_summary.json") as fh:
         assert json.load(fh)["metrics"][0]["initial_value"] == pytest.approx(5)
-    run = subprocess.run(cmd + ["--overwrite"], cwd=tmp_path, capture_output=True, text=True)
+    # the output of a dry run does not block the run that follows it
+    run = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
+    again = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True)
+    assert again.returncode == 2 and "output_dir exists" in again.stderr
+    assert "Traceback" not in again.stderr
     report = inspect(str(tmp_path / "output"))
     assert report["windows_simulated"] > 0
     assert report["max_dcd_vs_state_mismatch_A"] is not None

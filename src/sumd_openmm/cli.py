@@ -15,11 +15,12 @@ from collections import OrderedDict
 import numpy as np
 
 from . import __version__, cv, dcdtools, selection
+from .charmmgui import CharmmGuiError
 from .config import ConfigError, SumdConfig, read_key_value_file
 from .engine import Engine
 from .executors import LocalExecutor, MPIExecutor, RankWorker, worker_loop
 from .metrics import supervised_series
-from .omm_setup import build_simulation, load_production_helpers
+from .omm_setup import PlatformError, build_simulation, load_production_helpers
 from .parallel import LayoutError, assign_device
 from .seeding import StratifiedPool
 from .supervision import SELECTION_BIAS, combined_series, pick_best_walker, sumd_decision
@@ -387,6 +388,36 @@ class SumdRun:
         return path[::-1]
 
 
+def _only_dry_run(outdir):
+    """True when output_dir holds nothing but the output of --dry-run."""
+    try:
+        with open(os.path.join(outdir, "run_summary.json")) as fh:
+            summary = json.load(fh)
+    except (OSError, ValueError):
+        return False
+    if "dry_run" not in summary or "stop_reason" in summary:
+        return False
+    return not any(files for _, _, files in os.walk(os.path.join(outdir, "states"))) and \
+        not any(files for _, _, files in os.walk(os.path.join(outdir, "windows")))
+
+
+def _rank_from_launcher():
+    for var in ("SLURM_PROCID", "PMI_RANK", "OMPI_COMM_WORLD_RANK", "PMIX_RANK"):
+        if os.environ.get(var, "").isdigit():
+            return int(os.environ[var])
+    return 0
+
+
+def _mpi_world():
+    try:
+        from mpi4py import MPI
+    except ImportError:
+        raise ConfigError("parallel = mpi needs mpi4py, which this Python (%s) does not have. "
+                          "Install it against the cluster's MPI (docs/PARALLEL.md), or set "
+                          "parallel = serial." % sys.executable) from None
+    return MPI.COMM_WORLD
+
+
 def equilibrate(args, scfg, cfg, comm, log, device, root):
     """
     Run (rank 0) or skip the CHARMM-GUI equilibration; every rank returns the
@@ -445,7 +476,9 @@ def run(args, scfg, comm=None):
     outdir = os.path.abspath(scfg.output_dir)
     if root:
         if os.path.isdir(outdir) and os.listdir(outdir) and not (args.overwrite or args.dry_run):
-            raise ConfigError("output_dir exists; choose another or use --overwrite")
+            if not _only_dry_run(outdir):
+                raise ConfigError("output_dir exists; choose another or use --overwrite")
+            shutil.rmtree(outdir)
         if args.overwrite and os.path.isdir(outdir):
             shutil.rmtree(outdir)
         for folder in ("states", "windows/accepted", "windows/tmp", "windows/rejected", "ranks"):
@@ -593,14 +626,21 @@ def main(argv=None):
             args.overwrite = True
         comm = None
         if config.parallel == "mpi":
-            from mpi4py import MPI
-            comm = MPI.COMM_WORLD
+            comm = _mpi_world()
         run(args, config, comm)
         if args.test and not args.dry_run and (comm is None or comm.rank == 0):
             ok = selftest.audit(os.path.abspath(config.output_dir))
             print("test run %s: %s" % ("passed" if ok else "FAILED", os.path.abspath(config.output_dir)))
             if not ok:
                 sys.exit(1)
+    except (ConfigError, PlatformError, selection.SelectionError, CharmmGuiError) as exc:
+        if "comm" in locals() and comm is not None and comm.size > 1:
+            if comm.rank == 0:
+                print("sumd-openmm: error: %s" % exc, file=sys.stderr, flush=True)
+            comm.Abort(2)
+        if _rank_from_launcher() == 0:
+            print("sumd-openmm: error: %s" % exc, file=sys.stderr)
+        sys.exit(2)
     except BaseException as exc:
         if "comm" in locals() and comm is not None and comm.size > 1:
             with open(os.path.join(os.path.abspath(config.output_dir),

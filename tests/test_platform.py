@@ -87,3 +87,21 @@ def test_builtin_self_test(capsys):
     from sumd_openmm import selftest
     assert selftest.run() == 0
     assert "self test passed" in capsys.readouterr().out
+
+
+def test_rocm_hint_names_the_missing_release():
+    from sumd_openmm.omm_setup import rocm_hint
+    failures = ["Error loading library /env/lib/plugins/libOpenMMHIP.so: libhiprtc.so.6: "
+                "cannot open shared object file: No such file or directory",
+                "Error loading library /env/lib/plugins/libOpenMMCUDA.so: libcuda.so.1: cannot open"]
+    assert "rocm/6" in rocm_hint(failures)
+    assert rocm_hint(failures[1:]) is None
+
+
+def test_missing_mpi4py_is_a_config_error(monkeypatch):
+    import sys
+    from sumd_openmm.cli import _mpi_world
+    from sumd_openmm.config import ConfigError
+    monkeypatch.setitem(sys.modules, "mpi4py", None)
+    with pytest.raises(ConfigError, match="mpi4py"):
+        _mpi_world()

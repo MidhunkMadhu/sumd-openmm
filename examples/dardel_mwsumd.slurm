@@ -1,22 +1,17 @@
 #!/bin/bash -l
-# mwSuMD on one Dardel GPU node: eight walkers, one MI250X GCD each.
-# run.inp needs: platform = auto, parallel = mpi, mpi_mode = multi_gpu,
-# walkers = auto (or a multiple of 8), and output_dir on /cfs/klemming.
-# Check the environment first:  salloc -p gpu ... ; srun -n 1 sumd-openmm --test
+# mwSuMD on one Dardel GPU node: eight walkers, one GPU (MI250X GCD) each.
+# run.inp: platform = HIP, parallel = mpi, mpi_mode = multi_gpu, walkers = 8
 
-#SBATCH --job-name=mwsumd
+#SBATCH -J sumd
 #SBATCH -A <project>
 #SBATCH -p gpu
-#SBATCH --nodes=1
+#SBATCH -N 1
 #SBATCH --ntasks-per-node=8
-#SBATCH --cpus-per-task=7
 #SBATCH --gpus-per-node=8
-#SBATCH --time=24:00:00
-#SBATCH --output=mwsumd_%j.out
-#SBATCH --error=mwsumd_%j.err
+#SBATCH -t 24:00:00
 
-module load PDC rocm          # `module avail rocm` lists the installed versions
-conda activate sumd-amd
+module load PDC rocm/6.4.4
+source <conda>/etc/profile.d/conda.sh
+conda activate sumd-openmm
 
-export OMP_NUM_THREADS=1
-srun --gpus-per-task=1 --gpu-bind=single:1 --cpu-bind=cores sumd-openmm run.inp
+srun --gpus-per-task=1 --gpu-bind=single:1 sumd-openmm run.inp

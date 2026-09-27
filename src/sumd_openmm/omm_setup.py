@@ -30,6 +30,7 @@ If openmm_production.py is ever refactored into a build_simulation()
 function, re-vendor it and replace build_simulation() here with a call to it.
 """
 
+import re
 import sys
 
 GPU_PLATFORMS = ("CUDA", "HIP", "OpenCL")
@@ -59,6 +60,16 @@ def plugin_failures():
         return []
 
 
+def rocm_hint(failures):
+    """How to load the HIP plugin when it needs another ROCm release, or None."""
+    for failure in failures:
+        found = re.search(r"OpenMM\w*HIP\.so: (lib(?:hiprtc|amdhip64)\.so\.(\d+))", failure)
+        if found:
+            return ("HIP needs %s, from ROCm %s: load a ROCm %s module (e.g. "
+                    "module load rocm/%s.x) before running" % (found[1], found[2], found[2], found[2]))
+    return None
+
+
 def choose_platform(requested, enabled, log=print):
     """
     Platform name for `platform = requested`.
@@ -77,17 +88,20 @@ def choose_platform(requested, enabled, log=print):
         name = next((p for p in GPU_PLATFORMS if p in enabled), None)
     else:
         name = None
+    hint = rocm_hint(plugin_failures()) if requested in ("HIP", "auto") else None
     if name is None:
         failures = plugin_failures()
         raise PlatformError(
-            "OpenMM platform %s is not available; this OpenMM has %s.%s\n"
-            "NVIDIA GPUs need the CUDA build of OpenMM; AMD GPUs (e.g. MI250X) need the HIP "
-            "platform (conda-forge openmm-hip, or OpenMM built with HIP) and the ROCm "
-            "runtime loaded. Run `sumd-openmm --test` on a compute node to check."
+            "OpenMM platform %s is not available; this OpenMM has %s.%s\n%s"
             % (requested, ", ".join(enabled) or "none",
-               "\nPlugin load failures:\n  " + "\n  ".join(failures) if failures else ""))
+               "\nPlugin load failures:\n  " + "\n  ".join(failures) if failures else "",
+               hint or "NVIDIA GPUs need the CUDA platform and AMD GPUs the HIP platform of "
+               "OpenMM, with the matching driver or ROCm runtime loaded. Run "
+               "`sumd-openmm --test` on a compute node to check."))
     if requested.lower() != "auto":
         log("WARNING: platform %s is not available; using %s" % (requested, name))
+    if hint and name != "HIP":
+        log("NOTE: " + hint)
     return name
 
 

@@ -30,7 +30,7 @@ TEST_SAMPLES = 10
 def environment_report(log=print):
     import openmm
     from openmm import Platform
-    from .omm_setup import available_platforms, plugin_failures
+    from .omm_setup import available_platforms, plugin_failures, rocm_hint
 
     log("OpenMM %s, Python %s on %s" % (openmm.__version__, host_platform.python_version(),
                                         host_platform.node()))
@@ -38,14 +38,20 @@ def environment_report(log=print):
     names = available_platforms()
     for name in names:
         log("platform %-9s speed %s" % (name, Platform.getPlatformByName(name).getSpeed()))
-    for failure in plugin_failures():
+    failures = plugin_failures()
+    for failure in failures:
+        if "libcuda.so" in failure and "HIP" in names:
+            continue                  # the CUDA plugin cannot load on an AMD node
         log("plugin load failure: %s" % failure.strip())
+    hint = rocm_hint(failures)
+    if hint:
+        log("NOTE: " + hint)
     for var in VISIBILITY_VARIABLES:
         if os.environ.get(var):
             log("%s=%s" % (var, os.environ[var]))
     if not any(p in names for p in ("CUDA", "HIP", "OpenCL")):
-        log("WARNING: no GPU platform. NVIDIA needs the CUDA build of OpenMM; AMD needs the "
-            "HIP platform (conda-forge openmm-hip) and the ROCm runtime.")
+        log("WARNING: no GPU platform. NVIDIA GPUs need the CUDA platform of OpenMM and the "
+            "NVIDIA driver; AMD GPUs need the HIP platform and a matching ROCm runtime.")
     return names
 
 
@@ -94,6 +100,8 @@ def platform_agreement(names, log=print):
             integrator = openmm.VerletIntegrator(0.001)
             context = openmm.Context(system, integrator, platform)
             context.setPositions(positions)
+            if "DeviceName" in platform.getPropertyNames():
+                log("platform %-9s device %s" % (name, platform.getPropertyValue(context, "DeviceName")))
             state = context.getState(getForces=True)
             forces[name] = state.getForces(asNumpy=True).value_in_unit(
                 unit.kilojoule_per_mole / unit.nanometer)
