@@ -164,6 +164,11 @@ gives enough points for the window slope.
 starting coordinates violate the constraints (for example water
 geometry that differs from rigid TIP3P); check the structure.
 
+**`WARNING: rest = yes is ignored`.** Positional restraints change the
+Hamiltonian, and SuMD windows are unbiased dynamics. Restrained
+equilibration belongs before SuMD, with `equilibration = charmm-gui` or
+any other protocol.
+
 **`Unloading the cpe module is insufficient to restore the system
 defaults`** on Dardel after `module load PDC`. A notice from the Cray
 environment; it does not affect sumd-openmm.

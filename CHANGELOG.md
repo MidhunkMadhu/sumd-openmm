@@ -5,6 +5,19 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## 0.6.0 (2026-09-28)
+
+Added
+- MIT License.
+
+Changed
+- Pressure coupling, CHARMM force switching, molecule rewrapping and
+  CHARMM file reading are implemented in `sumd_openmm/omm_utils.py`;
+  energies and forces agree with the previous implementation to within
+  floating-point precision. Rewrapping also joins molecules split across
+  several box edges.
+- `rest = yes` is ignored with a warning for every force field.
+
 ## 0.5.0 (2026-09-28)
 
 Changed

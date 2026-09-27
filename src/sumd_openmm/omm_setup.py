@@ -33,6 +33,8 @@ function, re-vendor it and replace build_simulation() here with a call to it.
 import re
 import sys
 
+from .omm_utils import barostat, rewrap, vfswitch
+
 GPU_PLATFORMS = ("CUDA", "HIP", "OpenCL")
 PLATFORM_ORDER = GPU_PLATFORMS + ("CPU", "Reference")
 
@@ -130,8 +132,7 @@ def force_switch(prod, system, inputs):
     plain Lennard-Jones and the (a/r6)^2 - b/r6 NBFIX table these readers
     write; other custom LJ forms (12-6-4, combination rule 1) are refused.
     """
-    from types import SimpleNamespace
-    from openmm import CustomNonbondedForce, NonbondedForce
+    from openmm import CustomNonbondedForce
 
     customs = [f for f in system.getForces() if isinstance(f, CustomNonbondedForce)]
     if len(customs) > 1 or any(f.getNumTabulatedFunctions() != 2 or
@@ -139,8 +140,7 @@ def force_switch(prod, system, inputs):
                                for f in customs):
         raise ValueError("vdw = Force-switch supports standard or NBFIX Lennard-Jones only; "
                          "this topology has %s" % ", ".join(f.getEnergyFunction() for f in customs))
-    group = next(f.getForceGroup() for f in system.getForces() if isinstance(f, NonbondedForce))
-    return prod.vfswitch(system, SimpleNamespace(NONBONDED_FORCE_GROUP=group), inputs)
+    return vfswitch(system, None, inputs)
 
 
 def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
@@ -245,7 +245,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
         if toppar is None:
             sys.exit("Error: CHARMM requires toppar_file")
 
-        from .md_openmm.omm_readparams import read_top, read_params, read_crd, gen_box
+        from .omm_utils import read_top, read_params, read_crd, gen_box
 
         top = read_top(topfile, "CHARMM")
         params = read_params(toppar)
@@ -298,7 +298,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     system = top.createSystem(params, **nboptions) if fftype == "CHARMM" else top.createSystem(**nboptions)
 
     if fftype == "CHARMM" and inputs.vdw == "Force-switch":
-        system = prod.vfswitch(system, top, inputs)
+        system = vfswitch(system, top, inputs)
     elif inputs.vdw == "Force-switch" and "vdw" in cfg:
         system = force_switch(prod, system, inputs)
         log("vdw = Force-switch: LJ force switched from %.3g to %.3g nm on the %s topology "
@@ -326,17 +326,11 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     if inputs.pcouple == "yes":
         if inputs.p_type not in ("isotropic", "membrane"):
             raise ValueError("p_type must be isotropic or membrane, not %s" % inputs.p_type)
-        system = prod.barostat(system, inputs)
-
-    if fftype == "CHARMM" and inputs.rest == "yes":
-        if prod.detect_coordinate_file_type(crdfile) != "charmm_coordinate":
-            sys.exit("CHARMM restraints require coordinate_file to be a CHARMM coordinate or PDB file.")
-        from .md_openmm.omm_readparams import read_crd
-        system = prod.restraints(system, read_crd(crdfile, "CHARMM"), inputs)
+        system = barostat(system, inputs)
 
     if inputs.rest == "yes":
-        log("WARNING: rest = yes. SuMD windows must be unbiased dynamics; "
-            "restraints change the Hamiltonian.")
+        log("WARNING: rest = yes is ignored. SuMD windows are unbiased dynamics; "
+            "restraints would change the Hamiltonian.")
 
     # ---------------------------------------------- integrator and platform
     integrator = LangevinIntegrator(inputs.temp * kelvin, inputs.fric_coeff / picosecond,
@@ -364,7 +358,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                                                    start_info["velocity_source"], required=True)
 
     if rewrap_coordinates:
-        simulation = prod.rewrap(simulation)
+        simulation = rewrap(simulation)
 
     if reset_step_and_time:
         simulation.currentStep = 0

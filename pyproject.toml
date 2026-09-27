@@ -9,6 +9,12 @@ description = "Supervised molecular dynamics (SuMD, mwSuMD) with OpenMM for any 
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Midhun K Madhu", email = "midhun.madhu@icm.uu.se" }]
+license = { text = "MIT" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
 # OpenMM is deliberately not listed: install it with conda (environment.yml)
 # so the CUDA build matches the cluster. It is checked at run time.
 dependencies = ["numpy", "parmed"]

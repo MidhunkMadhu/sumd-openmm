@@ -2,11 +2,13 @@
 
 `omm_setup.build_simulation` reads the same MD keys as MD_openmm. The
 bundled `md_openmm/production_helpers.py` contains the imports and
-function definitions of its production driver. It builds the force field,
-nonbonded interactions, optional barostat and restraints, Langevin
-integrator, platform, topology and initial state. An explicit integrator
-seed makes retries reproducible. The vendored provenance is recorded in
-`md_openmm/PROVENANCE.txt`.
+function definitions of its production driver: input parsing and
+coordinate loading. `omm_utils.py` provides the barostat, CHARMM force
+switching, molecule rewrapping and CHARMM file readers.
+`build_simulation` assembles the force field, nonbonded interactions,
+optional barostat, Langevin integrator, platform, topology and initial
+state. An explicit integrator seed makes retries reproducible. The
+vendored provenance is recorded in `md_openmm/PROVENANCE.txt`.
 
 To refresh the bundled helpers from an MD_openmm checkout, run
 `python tools/vendor_md_openmm.py /path/to/MD_openmm`, inspect the

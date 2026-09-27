@@ -177,6 +177,12 @@ reports the atoms each selection resolves to.
 complete ligand-binding system with an RMSD-supervised input, annotated
 with the equivalent supervisedmdamber keys.
 
+## License and citation
+
+sumd-openmm is released under the [MIT License](LICENSE). If you use it
+in published work, please cite the methods below and this repository
+with the version used (`sumd-openmm --version`).
+
 ## References
 
 - Sabbadin D, Moro S. *J Chem Inf Model* **54**, 372-376 (2014).

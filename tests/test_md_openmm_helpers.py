@@ -17,13 +17,13 @@ PKG = os.path.join(ROOT, "src", "sumd_openmm", "md_openmm")
 REQUIRED = ("read_key_value_file", "build_inputs", "get_genvel", "normalize_none", "get_str",
             "get_bool", "get_int", "detect_coordinate_file_type", "load_coordinate_file_auto",
             "write_amber_restart", "use_velocities_from_coordinate_object",
-            "barostat", "rewrap", "vfswitch", "restraints")
+            "barostat", "rewrap", "vfswitch", "read_crd")
 
 
 def test_bundled_files_present():
-    for f in ("production_helpers.py", "omm_barostat.py", "omm_rewrap.py", "omm_vfswitch.py",
-              "omm_restraints.py", "omm_readparams.py", "PROVENANCE.txt"):
+    for f in ("production_helpers.py", "PROVENANCE.txt"):
         assert os.path.isfile(os.path.join(PKG, f)), f
+    assert not [f for f in os.listdir(PKG) if f.startswith("omm_")]
     assert "commit:" in open(os.path.join(PKG, "PROVENANCE.txt")).read()
 
 
