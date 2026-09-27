@@ -1,0 +1,667 @@
+================================================================================
+PROMPT: SUPERVISED MD ON OPENMM FOR TAAR1 LIGAND RECOGNITION, AND THE MSM BUILT
+        FROM IT
+================================================================================
+
+Paste this whole document as the task prompt. It is self-contained: it carries
+the scientific motivation, the existing code and data it must build on, the
+algorithm, the mathematics, the configuration surface, the validation tests, the
+downstream analysis and the refusal rules.
+
+Written 2026-09-27, after the unbiased-MD analysis in ../md_out/report.md.
+
+
+--------------------------------------------------------------------------------
+0. TASK
+--------------------------------------------------------------------------------
+
+Implement Supervised Molecular Dynamics (SuMD) on top of the user's existing
+OpenMM production driver, so that ligand recognition pathways into the TAAR1
+orthosteric site and the TM4/TM5 cleft ("pocket 2") can be generated cheaply,
+then used to seed hundreds of short unbiased trajectories, from which a Markov
+state model yields association/dissociation kinetics.
+
+Two things must be true of the result:
+
+  (a) it reproduces the user's existing Amber SuMD behaviour when run in
+      single-variable mode, and
+  (b) it adds a two-variable mode in which the pocket-2 gate is used for SEED
+      BOOKKEEPING, never as a second acceptance filter.
+
+Point (b) is the scientific reason this work exists. Read section 2 before
+writing any code.
+
+
+--------------------------------------------------------------------------------
+1. WHAT IS ALREADY ESTABLISHED - DO NOT RE-DERIVE
+--------------------------------------------------------------------------------
+
+An unbiased-MD analysis of 8 systems x 6 replicas x 1.2 us (57.6 us total,
+receptor + ligand only) has been completed. Code in ../md/, results in ../md_out/,
+full report in ../md_out/report.md. Its conclusions, which motivate this project:
+
+  * Pocket 2 (the TM4/TM5 cleft, Xu et al. 2023 "pocket 3") is a CRYPTIC SITE.
+    The gate aperture - minimum heavy-atom distance F154(4.56) to T197(5.45) -
+    sits at a closed value of ~3.7-4.2 A whenever no ligand wedges it. Open
+    fractions, at the 4.70 A boundary derived from a two-component Gaussian
+    mixture on the pooled aperture (closed 3.92 +/- 0.41 A, open 5.96 +/- 1.03 A):
+
+        8W89 apo    0.033      8JLP apo    0.192
+        8W89 PEA    0.104      8JLP PEA    0.210
+        8JLP EE     0.877      8JLP RAL    0.885      8JLP C95   0.788
+
+    Openings in the ligand-free receptor are brief (mean dwell 1.1-2.1 ns) and
+    number in the hundreds per 7.2 us, so they are well-sampled events, not rare
+    accidents. 8W89 apo is the cleanest estimate of the resting receptor; the
+    8JLP numbers are inflated because that structure was solved WITH ralmitaront
+    in the cleft.
+
+  * In the gated-access limit (gate opens/closes on ns, ligand encounter is
+    us-ms) the effective on-rate into the cleft scales with the equilibrium open
+    fraction, giving a kon penalty of roughly 5-30x at the mixture boundary and
+    12-140x at a ralmitaront-like 5.5 A aperture. The measured activation-rate
+    difference between ralmitaront and ulotaront is ~30x (0.006 +/- 0.001 vs
+    0.163 +/- 0.022 s^-1 uM^-1, Dedic et al. 2023). Order-of-magnitude consistent.
+
+  * Wedge occupancy is essentially binary and locked: RAL 0.945, EE 0.988,
+    C95 0.986, PEA 0.000 (PEA never reaches the cleft floor T197(5.45) in 14 400
+    frames). Ralmitaront's wedge does not exchange on the 1.2 us timescale, which
+    agrees with its 28 +/- 8 % washout reversibility.
+
+  * Allosteric routing separates WEDGE from NO WEDGE (load diverted into
+    TM4/ECL2, ratio ~1.5, q = 0.019) but NOT the agonist wedge from the
+    antagonist wedge (RAL vs C95 ratios 0.08-0.41, q >= 0.30). No sign inversion.
+
+  * Population shift, the W264(6.48) rotamer toggle and the PIF connector all
+    fail the replicate noise floor. PIF moves in the wrong direction: RAL packs
+    P202(5.50)-F260(6.44) 0.89 A TIGHTER than PEA.
+
+  * EE has a higher Emax than ralmitaront, established experimentally. In the
+    receptor-only ensembles, NOT ONE of 28 observables separates EE from RAL
+    above its own pair noise floor. A deliberate chemical perturbation of
+    ralmitaront (alternative pyrazole tautomer, 6 further replicas) is likewise
+    indistinguishable. Whatever sets the efficacy difference is not visible in
+    solvent-free, transducer-free receptor coordinates.
+
+  * Water and ions were stripped from the analysed trajectories, so the internal
+    water-network / sodium-site hypothesis was never tested. It is the only
+    mechanism class still standing.
+
+CONSEQUENCE FOR THIS PROJECT. Two deliverables follow, and the second is not
+optional: (i) binding kinetics that test whether the gate is rate-limiting, and
+(ii) water analysis of the same solvated trajectories, because these runs will
+contain solvent and the previous ones did not.
+
+
+--------------------------------------------------------------------------------
+2. THE DESIGN CONSTRAINT THAT MATTERS MOST
+--------------------------------------------------------------------------------
+
+SuMD accepts a short window if the ligand made progress toward the site and
+discards it otherwise. Its acceptance filter breaks detailed balance, so SuMD
+trajectories carry NO valid thermodynamics or kinetics. They are a pathway
+generator and a source of seeds, nothing else. Every rate reported at the end of
+this project must come from unbiased trajectories seeded from SuMD frames, never
+from SuMD segments themselves.
+
+Now the specific trap. If supervision uses ONLY the ligand-to-site coordinate,
+the algorithm will walk the ligand in during exactly those ~1-2 ns windows when
+the gate happens to be open, and will discard windows in which the ligand waits
+outside a shut gate. Since the gate is open only 0.8-3 % of the time in the apo
+receptor, that deletes the waiting time which - by the mechanism established in
+section 1 - is what sets the rate. The resulting kon would be fast and wrong, and
+it would be wrong in a way that silently confirms whatever the operator expected.
+
+Therefore:
+
+  * the gate aperture must be measured every window;
+  * it must NOT be used as a second acceptance filter in "both must improve"
+    (AND) mode as the default;
+  * it must be used to stratify the pool of states from which subsequent windows
+    are seeded, so that gate-closed configurations are deliberately retained.
+
+A joint-score mode is still to be implemented, because it is a legitimate thing
+to compare against - but it must be off by default and must carry this warning in
+its docstring and in the run log.
+
+
+--------------------------------------------------------------------------------
+3. WHAT TO BUILD ON - READ THIS CODE FIRST
+--------------------------------------------------------------------------------
+
+Two existing code bases, both by the user. READ BOTH BEFORE DESIGNING ANYTHING.
+Do not infer their contents from this prompt; this prompt may be stale.
+
+  A. OpenMM production driver: the MD_openmm repository
+     (github.com/MidhunkMadhu/MD_openmm). Continues CHARMM-GUI-prepared membrane
+     systems from restrained equilibration into unrestrained production.
+     Relevant modules, as of writing: openmm_production.py (driver),
+     omm_readinputs.py and omm_readparams.py (configuration parsing),
+     omm_barostat.py, omm_restraints.py, omm_rewrap.py, omm_vfswitch.py.
+     It reads AMBER topology (.parm7) and AMBER restart (.rst7), is configured
+     by a CHARMM-GUI-style key-value .inp file (NOT an Amber mdin), and writes
+     .rst7, OpenMM .xml state, .xml.chk checkpoint, .dcd and progress logs.
+     Restart behaviour is controlled by keys such as continuation and genvel.
+
+     THIS IS THE REQUIRED EXECUTION PATH. The SuMD driver must construct its
+     Simulation object through these modules, with the same .inp file format, so
+     that a SuMD run and a plain production run are configured identically and
+     use the same force field, water model, cutoffs, thermostat and barostat.
+     Do not write a parallel OpenMM setup path.
+
+  B. Reference SuMD implementation for Amber: ../supervisedmdamber-main.zip
+     (supervisedmdamber.py plus helpfolder/). This is the behaviour to
+     reproduce in single-variable mode. Its structure:
+
+       - supervisedmdamber.py: the cycle loop, restart-file juggling, the
+         accept/reject decision, starting-point bookkeeping, trajectory
+         concatenation.
+       - helpfolder/generate_fitCPPIN.py: writes a cpptraj script that
+         superposes each frame onto a reference PDB using the FIT masks.
+       - helpfolder/generate_calcCPPIN.py: writes a cpptraj script that computes
+         ligand RMSD to the reference with the "nofit" keyword, i.e. AFTER the
+         receptor superposition, so the CV retains the ligand's translation.
+       - helpfolder/extract_and_fit.py: reads column 2 of ligandRMSD.xvg,
+         subsamples 5 points across the window, linear-regresses them, writes
+         slope.dat and cvval.dat.
+       - helpfolder/create_unique_starting_points.py, delete_extra_nc_files.py,
+         create_traj.py: duplicate-branch removal and trajectory assembly.
+
+     Its input file (input_parameters.in) carries: CPPTRAJ, AMBEREXE, MPIPREFIX,
+     METHOD (cMD|GaMD), TIME_WINDOW_PS, COLVARCUT, TIMESTEP_FS, MDOUTSTEP,
+     TRAJOUTSTEP, MAXSTEP, INPUT_MDIN_FILE, AMBER_PARAMETER_FILE, RESTART_FILE,
+     TRAJOUTNAME, PDBALIGN, FIT_TRAJ_STRING, FIT_PDB_STRING,
+     CALCRMSD_TRAJ_STRING, CALCRMSD_PDB_STRING.
+
+  TWO DEFECTS IN THE REFERENCE IMPLEMENTATION, to be fixed rather than copied:
+
+    1. The mdin template (sumd.mdin) sets irest=1, ntx=5 but does not set ig.
+       A rejected window is restarted from prev_restart.rst7 with the same
+       inputs, so depending on the Amber default it may reproduce the same
+       trajectory instead of exploring a new one. In OpenMM this is solved
+       explicitly: restore the saved State, then call
+       setVelocitiesToTemperature(T, seed) with a NEW, LOGGED seed.
+
+    2. There is no retry counter. A walker trapped behind a barrier alternates
+       restart files indefinitely until MAXSTEP. Add max_retries_per_parent;
+       on exhaustion either accept the least-bad attempt or step back to the
+       grandparent state, and log which.
+
+
+--------------------------------------------------------------------------------
+4. THE ALGORITHM
+--------------------------------------------------------------------------------
+
+    state   <- initial State (positions, velocities, box vectors)
+    parent  <- state
+    cycle   <- 1
+
+    while cycle <= max_cycles:
+        run a window of tau ps from `parent`, writing frames every delta_t
+        CV1(t)  <- ligand progress coordinate, every frame   (section 5)
+        CV2(t)  <- gate aperture, every frame                (section 5)
+        b, cv   <- trend(CV1)                                (section 6)
+
+        if cv < colvarcut and b <= 0:
+            converged; stop
+
+        if accept(b, cv, CV2):                               (section 7)
+            commit the window's frames to the trajectory
+            save the final State into the seed pool, tagged by its CV2 stratum
+            parent <- final State of the window
+            retries <- 0
+        else:
+            discard the window and its frames
+            retries <- retries + 1
+            if retries > max_retries_per_parent:
+                step back (or accept least-bad) and log it
+            else:
+                restore `parent`, re-randomise velocities with a new logged seed
+
+        cycle <- cycle + 1
+
+Single-variable acceptance, to match the reference implementation exactly:
+
+    accept  iff  b <= 0  OR  (b > 0 AND cv < colvarcut)
+
+The second clause exists so that a walker already inside the cutoff is not
+punished for local fluctuations. Keep it.
+
+Windows are ordinary unbiased dynamics. No biasing force, no restraint, no
+modified Hamiltonian is applied at any point. Only the SELECTION is biased.
+
+
+--------------------------------------------------------------------------------
+5. COLLECTIVE VARIABLES - MATHEMATICS AND PITFALLS
+--------------------------------------------------------------------------------
+
+5.1 CV1, the ligand progress coordinate
+
+Support three types, selected by cv1_type:
+
+  rmsd      (default) ligand RMSD to its bound pose, in the receptor frame
+  distance  centre-of-mass distance, ligand to site (classic SuMD, Sabbadin &
+            Moro, J Chem Inf Model 54:372, 2014)
+  mindist   minimum heavy-atom distance between two selections
+
+The rmsd variant must reproduce the cpptraj "fit on receptor, then rms nofit on
+ligand" semantics, which is NOT a shape RMSD - it retains the ligand's
+translation relative to the site. Three steps per evaluation:
+
+  STEP 1. Kabsch superposition on the alignment selection (receptor CA).
+  With reference coordinates Q (n x 3) and current P (n x 3), both centred by
+  subtracting their own centroids:
+
+        H  = P^T Q
+        H  = U S V^T                        (singular value decomposition)
+        d  = sign(det(V U^T))
+        R  = V diag(1, 1, d) U^T
+
+  The reflection correction d is mandatory. Omitting it produces a mirror image
+  rather than a rotation on near-degenerate frames, roughly half the time.
+
+  STEP 2. Apply that transform to the ligand atoms, which were NOT part of the
+  fit:
+
+        l_i' = R (l_i - centroid(P)) + centroid(Q)
+
+  STEP 3. Plain RMSD against the reference ligand, with no further superposition:
+
+        CV1 = sqrt( (1/m) * sum_i || l_i' - m_i ||^2 )
+
+  Optionally mass-weighted; expose mass_weighted as a flag. cpptraj's rms is
+  unweighted unless the "mass" keyword is given, so the default here is
+  unweighted, matching the reference runs.
+
+  PERIODIC IMAGING - THE MOST LIKELY SILENT BUG. While the ligand is in bulk it
+  may occupy a different periodic image from the receptor, which yields a CV of
+  tens of angstroms and an arbitrary accept/reject decision. Before STEP 1,
+  translate the ligand into the image nearest the receptor centre using the
+  current box vectors (minimum-image convention; handle triclinic boxes, since
+  membrane systems are often built that way). Write a unit test for this: place
+  a ligand deliberately across the boundary and assert the CV is unchanged.
+
+5.2 CV2, the pocket-2 gate aperture
+
+    CV2 = min over heavy-atom pairs of || a_i - b_j ||,
+          a in F154(4.56) side chain, b in T197(5.45) side chain
+
+Reported in angstroms. Open/closed boundary 4.70 A by default, from the
+two-component Gaussian mixture in section 1; expose it as gate_open_cutoff and
+sweep it in any analysis that depends on it.
+
+NOTE ON NUMBERING. In the existing project topologies, biological residue number
+= topology residue number + 18, verified residue-by-residue and re-derived from
+the [DE]R[YFHW], CW.P and NP..Y motifs. So F154(4.56) is topology 136, T197(5.45)
+is topology 179, S198(5.46) is topology 180, D103(3.32) is topology 85,
+W264(6.48) is topology 246, V250(6.34) is topology 232. DO NOT hardcode either
+convention: resolve selections from the topology at startup and validate the
+residue identity (F, T, S, D, W, V) against the expected letter, aborting loudly
+on mismatch. The SuMD system may be built differently from the analysis systems.
+
+5.3 Selections
+
+Selection strings in the .inp should stay Amber-flavoured for continuity with
+the reference implementation. Resolve them ONCE at startup into integer index
+arrays. Using MDAnalysis at setup for this is acceptable; do not call
+MDAnalysis, MDTraj or cpptraj inside the cycle loop - all per-frame CV work is
+numpy on the position array.
+
+
+--------------------------------------------------------------------------------
+6. THE TREND STATISTIC
+--------------------------------------------------------------------------------
+
+Ordinary least squares on CV1(t) within the window:
+
+        b = sum_i (x_i - xbar)(y_i - ybar) / sum_i (x_i - xbar)^2
+
+Differences from the reference implementation, both deliberate:
+
+  * Use ALL frames in the window, not 5 subsampled points. With a 20 ps window
+    and frames every 1 ps there are 20 points at no extra cost, and the 5-point
+    version discards information while being sensitive to which frames are
+    picked.
+  * Also compute and log R^2 and the standard error of the slope,
+
+        SE(b) = sqrt( (1/(n-2)) * sum_i r_i^2 / sum_i (x_i - xbar)^2 )
+
+    and offer an optional stricter rule, require_significant_slope, that accepts
+    only when b < 0 and |b| > 2 SE(b), so that pure noise does not count as
+    progress. Default off, so that default behaviour matches the reference.
+
+cv in the acceptance rule is the LAST frame's CV1, as in the reference
+implementation, not the window mean.
+
+
+--------------------------------------------------------------------------------
+7. SUPERVISION MODES
+--------------------------------------------------------------------------------
+
+Configuration key: supervision = single | stratified | joint.   Default: single.
+
+7.1 single  (must exist; is the default; is the validation reference)
+
+One CV. The rule in section 4. Behaviour identical to the Amber implementation.
+CV2 is still measured and logged, but plays no part in any decision.
+
+7.2 stratified  (recommended for production)
+
+Acceptance is on CV1 exactly as in single mode. CV2 governs SEEDING:
+
+  * Define strata on CV2. Minimally two (gate-open: CV2 >= gate_open_cutoff;
+    gate-closed: CV2 < gate_open_cutoff). Optionally n quantile bins, key
+    gate_strata.
+  * Define bands on CV1 (e.g. 1 A bins of the progress coordinate), key
+    cv1_band_width.
+  * Maintain a pool of saved States keyed by cell c = (CV1 band, CV2 stratum),
+    each with a visit count n_c.
+  * Each cycle, choose the parent from the least-visited cell among the frontier
+    cells F (those at or adjacent to the best CV1 band reached so far):
+
+        c* = argmin_{c in F} n_c        , ties broken at random
+
+  * Cap the pool size per cell (keep the most recent k), so memory stays bounded.
+
+This is adaptive sampling with a frontier criterion. Its purpose is that windows
+are deliberately spent in gate-closed configurations, so the waiting-time
+statistics survive into the seeds handed to the MSM.
+
+7.3 joint  (implement, but off by default, and warn)
+
+Reduce both CVs to one score with z-scores taken against a reference window or
+against user-supplied mu and sigma:
+
+        z_k = (x_k - mu_k) / sigma_k
+        s   = w1 z1 + w2 z2
+
+then apply the section 4 rule to s(t). Weights w1, w2 from the .inp.
+
+The docstring and the run log must state: "joint mode applies an AND-style filter
+that discards windows in which the ligand waits outside a closed gate. Since the
+gate is open only 0.8-3 % of the time in the apo receptor, kon estimates derived
+from joint-mode seeds are expected to be biased fast. Use for comparison only."
+
+
+--------------------------------------------------------------------------------
+8. CONFIGURATION SURFACE
+--------------------------------------------------------------------------------
+
+Extend the existing .inp key-value format - do not invent a second config file
+and do not write an Amber mdin translator. New keys, with defaults:
+
+  # supervision
+  supervision              = single          # single | stratified | joint
+  cv1_type                 = rmsd            # rmsd | distance | mindist
+  cv1_traj_selection       = <amber-style mask for the ligand heavy atoms>
+  cv1_ref_selection        = <same, in the reference structure>
+  align_traj_selection     = <receptor CA mask>
+  align_ref_selection      = <same, in the reference structure>
+  reference_structure      = <bound-pose PDB or rst7>
+  mass_weighted            = no
+  colvarcut                = 2.0             # A, convergence cutoff on CV1
+  cv2_selection_a          = <F154(4.56) side chain>
+  cv2_selection_b          = <T197(5.45) side chain>
+  gate_open_cutoff         = 4.70            # A
+  gate_strata              = 2
+  cv1_band_width           = 1.0             # A
+  pool_per_cell            = 20
+  joint_weights            = 1.0, 1.0
+
+  # cycle control
+  window_ps                = 20
+  cv_sample_ps             = 1.0
+  max_cycles               = 500
+  max_retries_per_parent   = 8
+  require_significant_slope= no
+  random_seed              = <int, for reproducibility of the seed sequence>
+
+Everything else - timestep, temperature, thermostat, barostat, cutoffs,
+constraints, platform, precision - comes from the existing .inp keys and the
+existing MD_openmm parsing code. Do not duplicate them.
+
+
+--------------------------------------------------------------------------------
+9. EXECUTION MODEL
+--------------------------------------------------------------------------------
+
+Run the cycle loop IN-PROCESS. Build the Simulation once through the MD_openmm
+setup path, then:
+
+  * advance with simulation.step(n_steps_per_window);
+  * read positions from the Context each CV sample - do not write and re-read
+    files inside the loop;
+  * save a State with
+        context.getState(getPositions=True, getVelocities=True,
+                         enforcePeriodicBox=False)
+    and restore with context.setState(...). RESTORE BOX VECTORS TOO if a
+    barostat is active;
+  * on rejection, after restoring, call
+        context.setVelocitiesToTemperature(temperature, seed)
+    with a fresh seed drawn from the run's seeded RNG, and log that seed;
+  * write each window to its own DCD; keep it on acceptance, delete it on
+    rejection. Concatenate the accepted windows at the end, in order, into the
+    final supervised trajectory. Never let a rejected window's frames reach the
+    final trajectory.
+
+Rationale for in-process: the reference Amber implementation pays full process
+startup, context setup and file I/O per 20 ps window. SuMD is hundreds to
+thousands of windows, so this overhead dominates. Keeping one GPU context alive
+removes it.
+
+GaMD NOTE. The Amber reference supports SuGaMD. OpenMM has no native GaMD; it
+requires a plugin or a custom integrator. If SuGaMD is required, say so
+explicitly and scope it separately - do not silently substitute plain cMD and
+call it SuGaMD.
+
+
+--------------------------------------------------------------------------------
+10. OUTPUTS AND LOGGING
+--------------------------------------------------------------------------------
+
+The log is what makes the downstream MSM defensible. Per cycle, record:
+
+  cycle, parent_state_id, child_state_id, accepted (bool), reason,
+  seed_used, retries_so_far, wallclock,
+  cv1_series (all samples), cv2_series (all samples),
+  slope_b, se_b, r_squared, cv1_final, cv2_final, cv2_stratum, cv1_band,
+  cell_chosen, cell_visit_count
+
+Write it as CSV (one row per cycle, series columns as compact strings) or as
+Parquet/JSON-lines. Additionally write:
+
+  * the seeding tree (parent -> child, with accept/reject), so any later analysis
+    can reconstruct exactly which frames were selection-filtered;
+  * a run_summary.json with the resolved configuration, resolved atom indices,
+    the validated residue identities, software versions (OpenMM, CUDA, Python),
+    platform and precision, and total wallclock;
+  * the final concatenated supervised trajectory plus the per-cycle DCDs of
+    accepted windows.
+
+
+--------------------------------------------------------------------------------
+11. VALIDATION - REQUIRED BEFORE ANY PRODUCTION RUN
+--------------------------------------------------------------------------------
+
+  1. Unit tests, no MD required:
+       - Kabsch returns a proper rotation (det = +1) including on a deliberately
+         reflected input;
+       - CV1 is invariant to a rigid-body translation and rotation of the whole
+         system;
+       - CV1 is unchanged when the ligand is placed across a periodic boundary
+         (triclinic box included);
+       - CV1 computed by the new code matches a cpptraj "fit then rms nofit"
+         calculation on the same frames to within 1e-3 A;
+       - slope estimator reproduces scipy.stats.linregress on random data;
+       - the 5-point subsampling of the reference implementation is reproduced
+         when a compatibility flag is set, to demonstrate parity.
+
+  2. Short smoke run: 10 cycles, small window, single mode, verifying that
+     rejected windows leave no frames in the final trajectory and that restored
+     states reproduce the parent's energy to within integrator noise.
+
+  3. Parity run: single mode against the Amber driver on the same system and the
+     same starting structure. The two will not be bitwise identical - different
+     engine, different RNG - so compare distributions: acceptance rate, CV1
+     trajectory envelope, number of cycles to reach the cutoff. State the
+     comparison quantitatively; do not assert agreement without numbers.
+
+  4. Mode comparison: stratified vs single on the same system. Confirm that the
+     recognition pathway is unchanged while the distribution of CV2 among
+     retained seeds is visibly broader in stratified mode. This separates "the
+     new mode runs" from "the new mode changed the physics".
+
+
+--------------------------------------------------------------------------------
+12. DOWNSTREAM: SEEDED SAMPLING AND THE MSM
+--------------------------------------------------------------------------------
+
+SuMD output is input to this stage, never a result in itself.
+
+  12.1 Seeding. From the retained SuMD states, launch UNBIASED short
+       trajectories: 300-500 per ligand, 20-50 ns each, giving 6-25 us per
+       ligand - the same order as the 7.2 us per system already spent on the
+       unbiased work. Seeds must span both gate strata at every CV1 band; if
+       stratified mode was used this is automatic, and if single mode was used it
+       must be enforced by hand at the seeding step and the imbalance recorded.
+
+  12.2 Pathway diversity. Run 10-20 independent SuMD entries with different
+       seeds and initial ligand orientations, so the seed set is not conditioned
+       on one channel. Aminergic receptors offer both an extracellular/ECL2
+       vestibule route and lipid-facing entry, and ralmitaront's pyrazole may not
+       enter the way its bound pose suggests.
+
+  12.3 MSM. Featurise on at least (CV1, CV2) plus the ligand's position relative
+       to the site; discretise; build a reversible transition matrix. Lag time
+       2-5 ns, with seeds at least 5-10x the lag. Report, without exception:
+       implied timescales as a function of lag, the Chapman-Kolmogorov test, and
+       THE NUMBER OF INDEPENDENT TRANSITIONS supporting every rate. A rate from
+       fewer than ~10 transitions is not a rate; say so and report the observable
+       that is supported instead.
+
+       This rule is not boilerplate. The activation-coordinate MSM in the
+       unbiased work failed on exactly this point: 8JLP apo, PEA and RAL each
+       gave ZERO basin crossings in 7.2 us, and the MFPT was correctly refused.
+
+  12.4 Rates. Define bound and unbound states explicitly before estimating
+       anything. For association,
+
+            kon = 1 / (MFPT_bind * C),      C = 1 / (N_A * V_box)
+
+       stating V_box and the resulting effective concentration. If the
+       dissociation barrier is poorly sampled, do not quote a weak MFPT: take the
+       binding free energy from the MSM stationary distribution and derive
+       koff = kon * Kd, and say that is what was done.
+
+  12.5 Committor test - the direct test of the mechanism. Compute committors
+       along the entry pathway and determine whether the p = 0.5 surface
+       coincides with GATE PASSAGE (CV2 crossing its boundary) or with LIGAND
+       TRANSLATION (CV1). This converts the gated-access inference of section 1
+       into a measurement, and it is the single most valuable number this project
+       can produce.
+
+
+--------------------------------------------------------------------------------
+13. THE WATER ANALYSIS, ON THE SAME TRAJECTORIES
+--------------------------------------------------------------------------------
+
+These simulations are solvated. The previous 57.6 us was not. Therefore run, on
+the seeded unbiased trajectories, the analysis that could not be done before:
+
+  * water occupancy maps through the TM core, in particular the cavity around the
+    sodium site (D69(2.50), S110(3.39), N296(7.45), S297(7.46), N300(7.49)), the
+    region adjacent to Y304(7.53), and the cytoplasmic TM5/TM6 cavity;
+  * per-frame continuity of a hydrogen-bonded water wire from the orthosteric
+    site to the NPxxY motif, reported as a continuity fraction per ligand and
+    compared against a replicate noise floor;
+  * Na+ occupancy and residence in the allosteric site, D69(2.50) coordination
+    number, and whether the site dehydrates;
+  * water in the TM4/TM5 cleft itself: how many waters occupy pocket 2 when it is
+    shut, and whether they must be displaced for the wedge to insert. This is a
+    plausible and untested contributor to the kon barrier.
+
+Report each against the same discipline as section 14.
+
+
+--------------------------------------------------------------------------------
+14. STATISTICAL DISCIPLINE - CARRIED OVER, NOT NEGOTIABLE
+--------------------------------------------------------------------------------
+
+  1. The unit of replication is the independent trajectory or the independent
+     SuMD entry, never the frame. Frames are autocorrelated.
+  2. Compute the within-condition spread before any between-condition claim, and
+     report the ratio (between-condition range / within-condition range) beside
+     every result. A difference smaller than the spread is not reportable.
+  3. Report uncertainty on every free energy and every rate - bootstrap or
+     jackknife over independent trajectories.
+  4. State multiple-comparison control when many observables are tested.
+  5. Never pool efficacy values from different assays. Ralmitaront's Emax spans
+     59-95 % depending on the readout.
+
+
+--------------------------------------------------------------------------------
+15. VALIDATION TARGETS AND A FALSIFIABLE PREDICTION
+--------------------------------------------------------------------------------
+
+Before the protocol is trusted on any new compound, it must reproduce something
+already measured:
+
+  * ralmitaront's slow-on / slow-off signature: ~30x slower activation than
+    ulotaront and 28 +/- 8 % washout reversibility versus 97 +/- 3 %
+    (Dedic et al., Int J Neuropsychopharmacol 26:599, 2023). Adding an ulotaront
+    system (PDB 8JLO) is worth the extra cost purely as a ruler, since it has
+    published kinetics.
+
+  * THE PREDICTION THIS PROJECT CAN KILL. From the aperture each ligand requires
+    while wedged and the availability of that aperture in the apo receptor:
+    EE requires 5.09 A (available 1.4 % of the time, penalty ~72x) and
+    ralmitaront requires 5.35 A (available 0.8 %, penalty ~122x). Gated access
+    therefore predicts that EE and ralmitaront differ in kon by only ~1.2-1.7x.
+    If the computed kon difference is an order of magnitude or more, gated access
+    is NOT what separates them, and the search should move to the ternary complex
+    and to the water network.
+
+  A result that falsifies the gated-access mechanism is a successful outcome of
+  this project. Do not tune the protocol until it agrees.
+
+
+--------------------------------------------------------------------------------
+16. REFUSAL POLICY
+--------------------------------------------------------------------------------
+
+  * Any quantity that cannot be measured returns an explicit null, never a zero
+    or a default. In plots, "not measurable" must be visually distinct from a
+    real extreme value.
+  * Do not report a rate from fewer than ~10 independent transitions. Report the
+    supported observable instead and say why.
+  * Do not report thermodynamics or kinetics computed from SuMD segments.
+  * If an analysis cannot discriminate two hypotheses, name the two and state
+    what additional simulation would.
+  * State total sampling per system and the number of independent transitions
+    behind every rate.
+
+
+--------------------------------------------------------------------------------
+17. DELIVERABLES
+--------------------------------------------------------------------------------
+
+  1. sumd_openmm.py - the driver, built on the MD_openmm setup path, implementing
+     sections 4-10.
+  2. cv.py - Kabsch superposition, minimum-image handling, the three CV1 types,
+     CV2, the trend statistic. Pure numpy, importable and testable without OpenMM.
+  3. seeding.py - stratum/band bookkeeping, the pool, the frontier selection rule.
+  4. tests/ - the unit tests of section 11.1, runnable without a GPU.
+  5. An example .inp for one TAAR1 system, with every key of section 8 present
+     and commented.
+  6. README.md - how to run, what each mode does, the joint-mode warning verbatim,
+     and the validation results of section 11 with numbers.
+  7. A short methods note recording: force field, water model, lipid composition,
+     ion concentration, protonation states of D103(3.32) and D69(2.50), whether
+     Na+ was placed in the allosteric site, ligand parameterisation, timestep,
+     constraints, thermostat and barostat settings, platform and precision, and
+     aggregate sampling. These must match the existing production runs if the new
+     data are to be read alongside the existing 57.6 us.
+
+================================================================================
+END OF PROMPT
+================================================================================

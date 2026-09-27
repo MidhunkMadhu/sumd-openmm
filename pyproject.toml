@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sumd-openmm"
+dynamic = ["version"]
+description = "Supervised Molecular Dynamics (SuMD) on OpenMM, with gate-stratified seeding and MPI multi-walker runs"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Midhun K Madhu", email = "midhun.madhu@icm.uu.se" }]
+# OpenMM is deliberately not listed: install it with conda (environment.yml)
+# so the CUDA build matches the cluster. It is checked at run time.
+dependencies = ["numpy", "parmed"]
+
+[project.optional-dependencies]
+mpi = ["mpi4py"]
+test = ["pytest", "scipy"]
+
+[project.scripts]
+sumd-openmm = "sumd_openmm.cli:main"
+sumd-inspect = "sumd_openmm.inspect_run:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "sumd_openmm.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"sumd_openmm.md_openmm" = ["PROVENANCE.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

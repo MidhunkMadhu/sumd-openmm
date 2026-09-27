@@ -1,0 +1,16 @@
+# conda env create -f environment.yml && conda activate sumd-openmm && pip install -e .
+# On a cluster, prefer mpi4py built against the cluster MPI instead of the
+# conda one: drop mpi4py here, `module load` the MPI, then
+#   pip install --no-binary mpi4py mpi4py
+name: sumd-openmm
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - openmm>=8.0
+  - parmed
+  - numpy
+  - scipy
+  - pytest
+  - mpi4py        # only for parallel = mpi
+  - pip

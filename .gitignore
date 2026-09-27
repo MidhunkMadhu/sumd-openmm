@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# run outputs
+sumd_run*/
+*.dcd
+*.nc
+*.ncrst
+*.chk
+FATAL_rank_*.txt
+.DS_Store
