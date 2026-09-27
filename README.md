@@ -49,15 +49,27 @@ python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-op
 sumd-openmm --test
 ```
 
-For a local checkout, `conda env create -f environment.yml` followed by
-`python -m pip install -e .`. MPI runs need `mpi4py` built against the
-cluster's MPI; VMD-like selections need `MDAnalysis`. AMD GPUs need a
-ROCm 6 runtime; [parallel use](docs/PARALLEL.md) gives a generic GPU
-job script and tested versions for Dardel.
+To run walkers on several GPUs with MPI, install the package with
+mpi4py compiled against the cluster's MPI, in one command on a login
+node:
 
-`sumd-openmm --test` lists the OpenMM platforms available, checks that
-they compute the same forces, and runs two SuMD cycles of a built-in
-system. [Troubleshooting](docs/TROUBLESHOOTING.md) covers common
+```bash
+MPICC=mpicc pip install --no-binary mpi4py \
+    "sumd-openmm[mpi] @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
+```
+
+On HPE Cray systems (Dardel, LUMI) use `MPICC="cc -shared"`.
+`--no-binary mpi4py` makes pip compile mpi4py instead of using a prebuilt
+copy linked to another MPI.
+
+For a local checkout, `conda env create -f environment.yml` followed by
+`python -m pip install -e .`. VMD-like selections need `MDAnalysis`. AMD
+GPUs need a ROCm 6 runtime; [parallel use](docs/PARALLEL.md) gives a
+generic GPU job script and tested versions for Dardel.
+
+`sumd-openmm --test` lists the OpenMM platforms available and the MPI
+library mpi4py uses, checks that the platforms compute the same forces,
+and runs two SuMD cycles of a built-in system. [Troubleshooting](docs/TROUBLESHOOTING.md) covers common
 installation and cluster problems: ROCm versions, mpi4py, conda in batch
 jobs and others.
 

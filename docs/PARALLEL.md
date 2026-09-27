@@ -44,9 +44,10 @@ hang collectives. Use a shared output path, not local node scratch.
 
 OpenMM 8.6.1 from conda-forge includes the HIP platform for AMD GPUs. It
 needs a ROCm 6.x runtime (`libhiprtc.so.6`) on the compute nodes; it does
-not load with ROCm 7. For multiple walkers, build mpi4py with the
-cluster's MPI compiler wrapper: `MPICC=mpicc` in general, `MPICC="cc
--shared"` on HPE Cray systems.
+not load with ROCm 7. For multiple walkers, install the package with the
+`mpi` extra and mpi4py compiled by the cluster's MPI compiler wrapper,
+`MPICC=mpicc` in general and `MPICC="cc -shared"` on HPE Cray systems
+(see the Dardel install below).
 
 [`examples/gpu_node.slurm`](../examples/gpu_node.slurm) is a job script
 for one node with one walker per GPU; replace its `<...>` fields with the
@@ -71,10 +72,9 @@ Each MI250X is two GPUs (GCDs), so a GPU node has eight.
 ```bash
 conda create -n sumd-openmm -c conda-forge python=3.11 openmm=8.6.1 parmed numpy scipy pip git
 conda activate sumd-openmm
-pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git@main"
-
 module load PDC
-MPICC="cc -shared" pip install --no-binary mpi4py mpi4py
+MPICC="cc -shared" pip install --no-binary mpi4py \
+    "sumd-openmm[mpi] @ git+https://github.com/MidhunkMadhu/sumd-openmm.git@main"
 ```
 
 Install on a login node; compute nodes cannot download packages. With
@@ -92,8 +92,8 @@ sumd-openmm --test
 sumd-openmm run.inp --test
 ```
 
-`sumd-openmm --test` must list `HIP`, show a `gfx90a` device and pass its
-force check. `sumd-openmm run.inp --test` runs two short cycles of the
+`sumd-openmm --test` must list `HIP`, show a `gfx90a` device, report
+Cray MPICH as the MPI library of mpi4py and pass its force check. `sumd-openmm run.inp --test` runs two short cycles of the
 real system and reports its speed per walker.
 
 ### Submit

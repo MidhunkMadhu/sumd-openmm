@@ -105,3 +105,11 @@ def test_missing_mpi4py_is_a_config_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "mpi4py", None)
     with pytest.raises(ConfigError, match="mpi4py"):
         _mpi_world()
+
+
+def test_mpi_report(monkeypatch):
+    import sys
+    from sumd_openmm.selftest import mpi_report
+    lines = []
+    monkeypatch.setitem(sys.modules, "mpi4py", None)
+    assert mpi_report(lines.append) is None and "not installed" in lines[0]

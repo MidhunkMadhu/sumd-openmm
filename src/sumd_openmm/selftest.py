@@ -55,6 +55,27 @@ def environment_report(log=print):
     return names
 
 
+def mpi_report(log=print):
+    """mpi4py version and the MPI library it is linked to, without starting MPI."""
+    try:
+        import mpi4py
+    except ImportError:
+        log("mpi4py: not installed (needed only for parallel = mpi); see docs/TROUBLESHOOTING.md")
+        return None
+    mpi4py.rc.initialize = False
+    mpi4py.rc.finalize = False
+    try:
+        from mpi4py import MPI
+        library = MPI.Get_library_version().strip().splitlines()[0].split(",")[0]
+    except Exception as exc:
+        log("mpi4py %s: cannot load its MPI library: %s" % (mpi4py.__version__, exc))
+        return False
+    compiler = mpi4py.get_config().get("mpicc")
+    log("mpi4py %s%s, MPI library: %s (on a cluster this must be the cluster's MPI)"
+        % (mpi4py.__version__, ", built with %s" % compiler if compiler else "", library))
+    return library
+
+
 def _box_system():
     """216 charged LJ particles in a 2.4 nm periodic box, PME electrostatics."""
     import openmm
@@ -201,6 +222,7 @@ def audit(outdir, inspect=None, log=print):
 def run(log=print):
     """Entry point for --test without an input file. Returns an exit status."""
     names = environment_report(log)
+    mpi_report(log)
     ok = platform_agreement(names, log)
     ok &= builtin_run(log)
     log("self test %s" % ("passed" if ok else "FAILED"))

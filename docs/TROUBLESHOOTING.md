@@ -90,6 +90,12 @@ MPICC=mpicc pip install --no-cache-dir --no-binary mpi4py mpi4py          # most
 MPICC="cc -shared" pip install --no-cache-dir --no-binary mpi4py mpi4py   # HPE Cray (Dardel, LUMI)
 ```
 
+Installing the package as `sumd-openmm[mpi]` with the same `MPICC` and
+`--no-binary mpi4py` does both in one step. `sumd-openmm --test` reports
+the MPI library mpi4py is linked to; on a cluster it must be the
+cluster's MPI (Cray MPICH on HPE Cray systems), not one from conda or
+pip.
+
 **Every rank reports size 1.** Check with
 
 ```bash
@@ -97,7 +103,8 @@ srun -n 2 python -c "from mpi4py import MPI; c = MPI.COMM_WORLD; print(c.rank, c
 ```
 
 which must print `0 2` and `1 2`. `0 1` twice means mpi4py was built for
-another MPI (for example conda's); rebuild it as above.
+another MPI (for example conda's); rebuild it as above. A plain
+`pip install mpi4py` or `conda install mpi4py` installs such a copy.
 
 **`srun` does nothing or reports busy resources inside an interactive
 shell** started with `srun --pty bash`. The shell already occupies the
