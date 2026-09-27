@@ -1,81 +1,67 @@
 # sumd-openmm
 
-Supervised molecular dynamics (SuMD) and multiple-walker SuMD (mwSuMD)
-with OpenMM.
+Supervised molecular dynamics (SuMD) and multiple-walker supervised
+molecular dynamics (mwSuMD) with OpenMM.
 
-SuMD samples rare molecular events without adding any force to the
-system. The simulation advances in short windows of ordinary, unbiased
-molecular dynamics. After each window, user-defined collective variables
-are checked: if they moved in the requested direction, the window is
-kept and the next one continues from its end; otherwise the window is
-discarded and the previous state is simulated again with new
-velocities. mwSuMD runs several windows from the same state in each
-cycle and continues from the best one.
+## Methods
 
-sumd-openmm works with any system OpenMM can simulate from Amber,
-CHARMM, GROMACS or OpenMM XML input: proteins, nucleic acids, lipids and
-membranes, carbohydrates, small molecules, and complexes of any of
-these. Collective variables are distances between atoms or centres of
-geometry, distances along an axis, minimum distances between groups,
-numbers of atomic contacts, angles, dihedrals and RMSDs. They are defined with cpptraj masks or
-VMD-like selections, and each is driven to increase, to decrease or to
-reach a target value. Any number can be combined, some supervising the
-run, some choosing which states seed new windows, some only recorded.
-Typical uses include binding and unbinding of small molecules, peptides
-or ions; association of proteins, nucleic acids or both; domain and
-loop motions; base-pair opening; lipid or solvent access; and side-
-chain or backbone rotations.
+SuMD (Sabbadin and Moro, 2014) samples rare events such as ligand binding
+without adding any force to the system. The simulation advances in short
+windows of unbiased molecular dynamics. After each window, a collective
+variable sampled along the window is fitted to a straight line. If it
+moves in the requested direction, the next window continues from the end
+of this one; otherwise the window is discarded and repeated from the same
+state with new velocities.
 
-Windows run inside one OpenMM process with no restarts between them.
-Walkers run concurrently on several GPUs, on one node or across nodes,
-with MPI. mwSuMD follows Deganutti et al. (2025): every batch continues from
-its best walker by slope, SMscore or DMscore, with that walker's
-velocities; see [the correspondence](docs/ALGORITHM.md#correspondence-with-mwsumd).
+mwSuMD (Deganutti et al., 2025) runs a batch of walkers from the same state
+and always continues from the best one, keeping its coordinates and
+velocities for the next batch. The best walker is the one with the most
+favourable slope, SMscore (one metric) or DMscore (two metrics).
 
-Only the selection of windows is supervised, not the dynamics, so
-SuMD trajectories describe pathways, not rates or free energies. Use
-states saved by a run to seed unbiased simulations for those.
+sumd-openmm implements both methods as published, and adds:
+
+- any number of collective variables of eight types (distances, distances
+  along an axis, minimum distances, atomic contacts, angles, dihedrals,
+  RMSD and fitted RMSD), each driven to increase, to decrease or towards a
+  value, with cpptraj masks or VMD-like selections;
+- combined supervision of several metrics, staged supervision that moves
+  from one metric to the next, and metrics that are only recorded;
+- stratified seeding, which restarts from states spread along additional
+  metrics instead of a single chain;
+- any system OpenMM reads from Amber, CHARMM, GROMACS or OpenMM XML files;
+- optional equilibration of a CHARMM-GUI Amber or GROMACS system in
+  OpenMM, with its staged restraints, before SuMD;
+- walkers on several GPUs, on one node or across nodes, with MPI, on
+  NVIDIA (CUDA) or AMD (HIP) GPUs;
+- a test mode that checks the installation and a short run of the real
+  system, and an audit of trajectories and saved states after a run.
+
+SuMD accepts or rejects windows but never changes the dynamics, so its
+trajectories describe pathways, not rates or free energies. Saved states
+can seed unbiased simulations for those.
 
 ## Install
-
-To install from the public GitHub repository without cloning it yourself:
 
 ```bash
 conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git
 conda activate sumd-openmm
 python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
-sumd-openmm --help
+sumd-openmm --test
 ```
 
-Git and pip fetch the package automatically. The repository must be public
-for this command to work without GitHub credentials. The package is not yet
-published on a Conda channel, so Conda installs OpenMM and its scientific
-dependencies while pip installs sumd-openmm from GitHub.
+For a local checkout, `conda env create -f environment.yml` followed by
+`python -m pip install -e .`. MPI runs need `mpi4py` built against the
+cluster's MPI; VMD-like selections need `MDAnalysis`. On AMD GPUs install
+`openmm-hip` in place of `openmm` (see [parallel use](docs/PARALLEL.md)).
 
-If you have a local checkout and want an editable installation instead:
-
-```bash
-conda env create -f environment.yml
-conda activate sumd-openmm
-python -m pip install -e .
-sumd-openmm --help
-```
-
-On AMD GPUs (Dardel, LUMI) OpenMM needs its HIP platform, which the
-default CUDA build lacks; install `openmm-hip` instead of `openmm` as
-described in [parallel use](docs/PARALLEL.md#amd-gpus-dardel-lumi).
-`sumd-openmm --test` lists the platforms OpenMM can use, checks that
-their forces agree, and runs two SuMD cycles of a built-in system.
-
-An existing OpenMM environment can install the Python requirements with
-`python -m pip install -e .`. Install `mpi4py` against the MPI library used to launch
-parallel runs. VMD-like selections require `MDAnalysis`.
+`sumd-openmm --test` lists the OpenMM platforms available, checks that
+they compute the same forces, and runs two SuMD cycles of a built-in
+system.
 
 ## Quick start
 
-Create `run.inp` alongside a topology and coordinates. The selections in
-this example use zero-based atom indices and must be replaced with indices
-from your topology:
+Create `run.inp` next to an equilibrated topology and coordinates. The
+selections here are placeholders:
 
 ```ini
 force_field = AMBER
@@ -91,99 +77,83 @@ random_seed = 42
 output_dir = sumd_run
 metric_1_name = approach
 metric_1_type = distance
-metric_1_a = indices:0-9
-metric_1_b = indices:100-109
+metric_1_a = :LIG&!@H=
+metric_1_b = :45,112,290@CA
 metric_1_role = supervise
 metric_1_direction = decrease
 metric_1_target = 4
 ```
 
 ```bash
-sumd-openmm run.inp --dry-run
-sumd-openmm run.inp --test
+sumd-openmm run.inp --dry-run    # selections and initial values
+sumd-openmm run.inp --test       # two short cycles, audited, with speed
 sumd-openmm run.inp
 sumd-inspect sumd_run
 ```
 
-The input above starts from an already equilibrated system, whatever
-software equilibrated it. To equilibrate a CHARMM-GUI system in OpenMM
-first, add `equilibration = charmm-gui` and `charmm_gui_dir`; the
-restrained stages of its Amber or GROMACS folder then run before SuMD,
-each logged as it starts and ends. See [equilibration](docs/EQUILIBRATION.md).
+To start from a CHARMM-GUI system instead, replace the first three lines
+with `equilibration = charmm-gui` and `charmm_gui_dir = <folder>`; its
+minimization and restrained equilibration stages run first, each logged
+as it starts and ends ([equilibration](docs/EQUILIBRATION.md)).
 
-The dry run prints each selection and its initial value. The test runs
-two cycles of ten samples in `sumd_run_test`, audits the saved states
-and trajectories, and reports the speed; run it on the node type the
-job will use. All distances use
-angstroms; angles use degrees; times use picoseconds.
+For several walkers, set `walkers` and `walker_score`
+(`slope`, `smscore` or `dmscore`), and `parallel = mpi` to run them on
+separate GPUs.
 
-| Type | Required selections | Value |
+Distances are in ångström, angles in degrees and times in picoseconds.
+
+## Collective variables
+
+| Type | Selections | Value |
 | --- | --- | --- |
 | `distance` | `a, b` | Distance between centres of geometry |
-| `distance_axis` | `a, b`, axis | Signed or unsigned component along an axis |
+| `distance_axis` | `a, b`, axis | Component along an axis, signed or not |
 | `mindist` | `a, b` | Smallest atom-pair distance |
-| `contacts` | `a, b`, cutoff | Number of atom pairs closer than `cutoff` (4 Å) |
+| `contacts` | `a, b`, cutoff | Atom pairs closer than `cutoff` (4 Å) |
 | `angle` | `a, b, c` | Three-atom angle |
 | `dihedral` | `a, b, c, d` | Four-atom torsion |
-| `rmsd` | `a`, reference | Shape RMSD after fitting |
+| `rmsd` | `a`, reference | RMSD after fitting `a` itself |
 | `rmsd_displacement` | `a`, `fit`, reference | RMSD of `a` after fitting `fit` |
 
-Supervised metrics require `direction = decrease | increase | toward` and
-`target`. The `toward` direction also requires `tolerance`. Increasing
-and decreasing torsions may use `target_delta` in place of `target`.
-Other metrics may use `role = stratify` with `bins`, or `role = monitor`.
-See [configuration](docs/CONFIG_REFERENCE.md), [equilibration](docs/EQUILIBRATION.md),
-[algorithm](docs/ALGORITHM.md),
-[outputs](docs/OUTPUTS.md), [parallel use](docs/PARALLEL.md),
-[validation](docs/VALIDATION.md), and [setup](docs/SETUP_LAYER.md).
-The [examples](examples) show different processes and selection languages.
+A supervised metric needs `direction = decrease | increase | toward` and
+`target`; `toward` also needs `tolerance`, and torsions may use
+`target_delta`. Other metrics take `role = stratify` with `bins`, or
+`role = monitor`. RMSD metrics can select reference atoms with separate
+masks (`reference_a`, `reference_fit`) when the reference is numbered
+differently.
 
-### From supervisedmdamber
+## Selections
 
-[`examples/ligand_binding_amber`](examples/ligand_binding_amber) is the
-supervisedmdamber test system; its `run.inp` notes the Amber setting
-each line reproduces. The ligand RMSD after fitting the receptor matches
-cpptraj's `rms` then `rms nofit` to 1e-4 Å, and the switched
-Lennard-Jones energy matches sander with `fswitch`.
-
-| input_parameters.in | run.inp |
-| --- | --- |
-| `TIME_WINDOW_PS`, `TIMESTEP_FS` | `window_ps`, `dt` (ps) |
-| `MDOUTSTEP`, `TRAJOUTSTEP` | `cv_sample_ps`, `dcd_stride` |
-| `COLVARCUT` | `metric_1_target` |
-| `MAXSTEP` | `max_cycles` |
-| `FIT_TRAJ_STRING`, `FIT_PDB_STRING` | `metric_1_fit`, `metric_1_reference_fit` |
-| `CALCRMSD_TRAJ_STRING`, `CALCRMSD_PDB_STRING` | `metric_1_a`, `metric_1_reference_a` |
-| `PDBALIGN` | `metric_1_reference` |
-| `INPUT_MDIN_FILE` | `temp`, `fric_coeff`, `cons`, `vdw`, `r_on`, `r_off`, `pcouple` |
-| `AMBEREXE`, `MPIPREFIX` | `platform`; walkers use `parallel = mpi` |
-| `METHOD=GaMD` | not available; OpenMM needs a GaMD integrator |
-
-The five-point slope (`slope_points = 5`) and the acceptance rule are
-those of supervisedmdamber. Unlike it, a parent is retried at most
-`max_retries_per_parent` times.
-
-### Selection syntax
-
-`selection_syntax = cpptraj` uses ParmEd Amber masks; `:45@CA` selects
-one atom in the 45th residue in file order. `selection_syntax = vmd` uses
-MDAnalysis selections on a Universe built from the ParmEd structure.
-Prefixes `cpptraj:`, `vmd:`, `indices:`, and `file:` override the
-default per selection.
+`selection_syntax = cpptraj` uses ParmEd Amber masks; `vmd` uses
+MDAnalysis selections. The prefixes `cpptraj:`, `vmd:`, `indices:` and
+`file:` choose the syntax of a single selection.
 
 | Meaning | cpptraj | VMD-like |
 | --- | --- | --- |
 | Residue in file order | `:45` | `resnum 45` if topology numbering agrees |
 | Named atom | `:45@CA` | `resid 45 and name CA` |
-| Exclude matching names | `:LIG&!@H=` | `resname LIG and not name "H.*"` |
+| Heavy atoms of a residue | `:LIG&!@H=` | `resname LIG and not name "H.*"` |
 
-MDAnalysis syntax is VMD-like but not identical; `resid` uses topology
-residue identifiers while `resnum` uses residue numbers. Check resolved
-indices in the startup report. A selection of multiple atoms represents
-its unweighted centre of geometry, except `mindist` which uses all atom
-pairs.
+A multi-atom selection stands for its unweighted centre of geometry,
+except in `mindist` and `contacts`, which use every atom pair. The dry run
+reports the atoms each selection resolves to.
 
-### Methods
+## Documentation
+
+[Configuration](docs/CONFIG_REFERENCE.md) ·
+[algorithm](docs/ALGORITHM.md) ·
+[equilibration](docs/EQUILIBRATION.md) ·
+[outputs](docs/OUTPUTS.md) ·
+[parallel use and GPUs](docs/PARALLEL.md) ·
+[validation](docs/VALIDATION.md) ·
+[setup](docs/SETUP_LAYER.md) ·
+[examples](examples)
+
+[`examples/ligand_binding_amber`](examples/ligand_binding_amber) is a
+complete ligand-binding system with an RMSD-supervised input, annotated
+with the equivalent supervisedmdamber keys.
+
+## References
 
 - Sabbadin D, Moro S. *J Chem Inf Model* **54**, 372-376 (2014).
   DOI: [10.1021/ci400766b](https://doi.org/10.1021/ci400766b).

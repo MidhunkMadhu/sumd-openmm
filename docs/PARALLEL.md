@@ -54,7 +54,7 @@ conda activate sumd-amd
 python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
 ```
 
-`openmm-hip` on conda-forge (8.1.1 at the time of writing) requires a
+`openmm-hip` on conda-forge requires a
 matching OpenMM release; let conda choose it. Before submitting, run
 `sumd-openmm --test` in an interactive job on a GPU node and check that
 `HIP` is listed and its forces agree with Reference. Then run

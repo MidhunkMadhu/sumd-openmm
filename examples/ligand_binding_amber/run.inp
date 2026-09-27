@@ -1,7 +1,7 @@
-# Ligand binding by SuMD: the supervisedmdamber test system on OpenMM.
+# Ligand binding by SuMD, supervised by the ligand RMSD to its bound pose.
 # CHARMM36m receptor-ligand complex in a POPC membrane, exported in Amber
-# format by CHARMM-GUI. The right column gives the supervisedmdamber
-# (input_parameters.in / sumd.mdin) setting each line reproduces.
+# format by CHARMM-GUI. Comments give the equivalent supervisedmdamber
+# (input_parameters.in / sumd.mdin) setting.
 #
 #   sumd-openmm run.inp --dry-run     # selections and initial RMSD
 #   sumd-openmm run.inp --test        # two short cycles in sumd_run_test

@@ -16,15 +16,15 @@ retain their MD_openmm meaning. See [setup](SETUP_LAYER.md).
 `platform` is `auto`, `CUDA`, `HIP`, `OpenCL`, `CPU` or `Reference`.
 `auto` takes the fastest available. A GPU platform that is not available
 is replaced by another GPU platform (CUDA → HIP on AMD nodes), never by
-the CPU; the run stops instead. `precision` (`single`, `mixed`, `double`;
-default `single`, older name `cuda_precision`) applies to every GPU
-platform.
+the CPU; without a GPU platform the run stops. `precision` (`single`,
+`mixed`, `double`; default `single`; also accepted as `cuda_precision`)
+applies to every GPU platform.
 
-`vdw = Force-switch` written in the input also switches Amber and GROMACS
-topologies between `r_on` and `r_off`, as Amber's `fswitch` does for
-CHARMM force fields exported by CHARMM-GUI. MD_openmm's default applies
-it to CHARMM topologies only, so without the line an Amber topology
-truncates Lennard-Jones at `r_off`.
+`vdw = Force-switch` switches Lennard-Jones forces to zero between `r_on`
+and `r_off`, as CHARMM force fields require and as Amber's `fswitch`
+does. It applies to CHARMM topologies by default and to Amber and GROMACS
+topologies when written in the input; otherwise Lennard-Jones is
+truncated at `r_off`.
 
 `force_field = OPENMM_XML` loads `system_xml` (an XmlSerializer System)
 and `topology_file` (PDB or PDBx with initial positions).

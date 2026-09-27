@@ -39,11 +39,11 @@ and flat-bottom `&rst` torsions with linear walls; GROMACS
 On the tested system the Amber positional (141.81 kcal/mol) and torsional
 (13.55 kcal/mol) restraint energies equal sander's.
 
-Differences from the original engines: Langevin dynamics replaces
-GROMACS's v-rescale thermostat (friction `1/tau_t`); OpenMM's Monte Carlo
-barostats replace Berendsen, C-rescale and Parrinello-Rahman coupling;
-restraint references are not scaled with the box (GROMACS
-`refcoord_scaling`); minimization stops at an RMS force of 10 kJ/mol/nm.
+Temperature is controlled by Langevin dynamics, with friction `1/tau_t`
+for GROMACS inputs, and pressure by OpenMM's Monte Carlo barostats,
+whichever coupling scheme the input names. Restraint references stay
+fixed as the box changes, and minimization stops at an RMS force of
+10 kJ/mol/nm.
 
 ## Output and progress
 

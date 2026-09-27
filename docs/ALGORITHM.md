@@ -59,8 +59,8 @@ Deganutti et al., *eLife* 13, RP96513 (2025), Methods, "mwSuMD protocol":
 | Stop when one supervised metric reaches a threshold | give the other supervised metrics a target that is always met, e.g. an RMSD target of 1000 with `direction = decrease` |
 | Phases supervising different metrics | successive runs, each started from the previous `final_state.xml` as `coordinate_file`; or `supervision = multistep` when each phase has one metric |
 
-The paper's implementation used ACEMD. Differences: OpenMM is the engine,
-and any number of metrics may be combined in a DMscore.
+DMscore is defined in the paper for two metrics; here it accepts any
+number of supervised metrics.
 
 With `seeding=stratified`, the pool assigns each saved state a cell:
 the band of the first supervised progress quantity and a bin for each
