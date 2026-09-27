@@ -29,11 +29,13 @@ can seed further simulations.
 
 ## Reading the progress log
 
-`output_dir/progress.log` (also printed to the screen) has one line per
-cycle:
+`output_dir/progress.log` (also printed to the screen) starts with one
+line per metric, giving its selections and initial value, followed by
+one line per cycle:
 
 ```
-cycle 7/100 from node 6: walker w3 of 8 accepted -> node 7 | ligand_rmsd 28.41 A (-0.60) | ligand_rmsd by walker: w0=29.10 w1=28.95 w2=29.40 w3=28.41* ...
+metric ligand_rmsd (rmsd_displacement, supervise, decrease to 2): a = :314&!@H= -> 27 atoms in P0G314; fit = :1-313@CA -> 313 atoms in ASP1..CYS313 (313 residues); reference ref.pdb; initial 32.25
+cycle 7/100 from node 6: walker w3 of 8 accepted -> node 7 | ligand_rmsd 28.41 A (-0.60)
 ```
 
 | Part | Meaning |
@@ -42,12 +44,12 @@ cycle 7/100 from node 6: walker w3 of 8 accepted -> node 7 | ligand_rmsd 28.41 A
 | `from node 6` | Saved state the windows started from |
 | `walker w3 of 8 accepted -> node 7` | Walker whose window was kept (`w3` matches the `_w3` window files and the `walker` column of `nodes.csv`) and the new state it produced. `converged` when the target is reached; `rejected` with the retry count when no window is kept |
 | `ligand_rmsd 28.41 A (-0.60)` | Every metric at the end of the kept window, and its change from the starting state |
-| `by walker: … w3=28.41*` | The first supervised metric at the end of every walker's window; `*` marks the one kept |
 
 With several walkers and the default `walker_acceptance = always`, every
 cycle is accepted: the best walker is always continued, even when the
 metric moved the wrong way. Progress shows in the metric values.
-`nodes.csv` holds the same values for every saved state.
+`nodes.csv` holds the same values for every saved state, and
+`windows.jsonl` the values of every walker's window.
 
 ## Workflow
 

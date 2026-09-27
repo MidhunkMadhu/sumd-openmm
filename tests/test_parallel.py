@@ -260,4 +260,4 @@ def test_progress_line_reports_walker_and_metrics(tmp_path):
     first = lines[0]
     assert "cycle 1/2 from node 0: walker w" in first and "of 3 accepted -> node 1" in first
     assert "metric_1 " in first and " A (" in first
-    assert "metric_1 by walker: w0=" in first and "*" in first
+    assert "by walker" not in first

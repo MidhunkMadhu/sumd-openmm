@@ -404,13 +404,7 @@ class SumdRun:
         before = self.nodes[parent]["metrics"]
         values = ", ".join("%s %s (%+.2f)" % (m.name, self._value(m, v), v - before[m.name])
                            for m, v in zip(self.s.metrics, shown["metrics_final"]))
-        line = "cycle %d/%d from node %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
-        if len(batch) > 1:
-            spec = self.supervised[0]
-            line += " | %s by walker: %s" % (spec.name, " ".join(
-                "w%d=%s%s" % (r["w"], "%.2f" % r["metrics_final"][spec.number - 1],
-                              "*" if r is chosen else "") for r in batch))
-        return line
+        return "cycle %d/%d from node %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
 
     def path_to(self, node_id):
         path = []
@@ -418,6 +412,25 @@ class SumdRun:
             path.append(node_id)
             node_id = self.nodes[node_id]["parent"]
         return path[::-1]
+
+
+def _metric_summary(row, spec):
+    """One readable line per metric; run_summary.json keeps the full record."""
+    def residues(names):
+        return names[0] if len(names) == 1 else "%s..%s (%d residues)" % (names[0], names[-1], len(names))
+    goal = ""
+    if spec.role == "supervise" and spec.direction == "toward":
+        goal = ", toward %g within %g" % (spec.target, spec.tolerance)
+    elif spec.role == "supervise":
+        goal = ", %s to %s" % (spec.direction, "%g" % spec.target if spec.target is not None
+                               else "start%+g" % spec.target_delta)
+    parts = ["%s = %s -> %d atom%s in %s" % (key, sel["expression"], sel["count"],
+                                             "" if sel["count"] == 1 else "s", residues(sel["residues"]))
+             for key, sel in row["selections"].items()]
+    if "reference" in row:
+        parts.append("reference %s" % row["reference"]["file"])
+    return "metric %s (%s, %s%s): %s; initial %.2f" % (
+        spec.name, spec.type, spec.role, goal, "; ".join(parts), row["initial_value"])
 
 
 def _only_dry_run(outdir):
@@ -565,7 +578,7 @@ def run(args, scfg, comm=None):
     if root:
         for row, value in zip(report, initial):
             row["initial_value"] = float(value)
-            log("%s: %s" % (row["name"], json.dumps(row)))
+            log(_metric_summary(row, scfg.metrics[row["number"] - 1]))
             if row["role"] == "supervise":
                 spec = scfg.metrics[row["number"] - 1]
                 values, target = supervised_series([value], spec, None, value)

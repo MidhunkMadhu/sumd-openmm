@@ -5,6 +5,15 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## 0.3.1 (2026-09-27)
+
+Changed
+- Progress lines no longer list every walker's value; `windows.jsonl`
+  keeps them.
+- The start of `progress.log` describes each metric on one short line
+  (selections, atom counts, residue range, initial value) instead of the
+  full selection record, which stays in `run_summary.json`.
+
 ## 0.3.0 (2026-09-27)
 
 Changed

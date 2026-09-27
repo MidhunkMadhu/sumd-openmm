@@ -148,6 +148,11 @@ metric moved away from the target. Follow the metric values on each
 progress line; `walker_acceptance = sumd` repeats a cycle whose best
 walker made no progress.
 
+**Where are the values of the walkers that were not kept?** Progress
+lines show the kept walker only. `windows.jsonl` in `output_dir` has one
+record per window with every metric sampled along it (`metric_series`)
+and its final values (`metric_final`); `sumd-inspect` summarizes them.
+
 **The run is much slower than the `--test` speed of the built-in
 system.** Metrics are computed on the CPU from coordinates copied off
 the GPU every `cv_sample_ps`; with tens of thousands of atoms and a
