@@ -251,3 +251,13 @@ def test_mpirun_three_ranks(tmp_path):
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     assert p.returncode == 0, p.stdout[-3000:] + p.stderr[-3000:]
     assert "MPI FAKE RUN OK" in p.stdout
+
+
+def test_progress_line_reports_walker_and_metrics(tmp_path):
+    out, runner, scfg = run_fake(tmp_path, LocalExecutor, 3, walker_score="smscore", max_cycles=2)
+    lines = [l for l in open(os.path.join(out, "progress.log")) if "] cycle " in l]
+    assert len(lines) == 2
+    first = lines[0]
+    assert "cycle 1/2 from node 0: walker w" in first and "of 3 accepted -> node 1" in first
+    assert "metric_1 " in first and " A (" in first
+    assert "metric_1 by walker: w0=" in first and "*" in first

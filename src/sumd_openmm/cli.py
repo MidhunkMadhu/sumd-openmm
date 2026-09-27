@@ -361,7 +361,7 @@ class SumdRun:
                     walker_score=self.s.walker_score, score=_finite(scores[result["w"]]),
                     cell_chosen=list(cell) if cell is not None else None,
                     cell_visit_count=visits))
-            self.log("cycle %d parent %d: %s; node %s" % (cycle, batch_parent, verdict, child))
+            self.log(self.cycle_report(cycle, batch_parent, batch, chosen, accepted, verdict, action, child))
             if verdict == "converged" and decision == "converged":
                 if self.s.supervision == "multistep" and self.stage < len(self.s.stages) - 1:
                     self.stage += 1
@@ -379,6 +379,38 @@ class SumdRun:
 
     def best_node(self):
         return min(self.nodes, key=lambda i: self.nodes[i]["progress"])
+
+    def _value(self, spec, value):
+        if spec.type == "contacts":
+            return "%d" % value
+        return "%.2f %s" % (value, "deg" if spec.type in ("angle", "dihedral") else "A")
+
+    def cycle_report(self, cycle, parent, batch, chosen, accepted, verdict, action, child):
+        """One progress line: outcome, walker, every metric and its change."""
+        shown = accepted if accepted is not None else chosen
+        who = "walker w%d of %d" % (shown["w"], len(batch)) if len(batch) > 1 else "window"
+        if accepted is None:
+            outcome = ("window rejected" if len(batch) == 1 else
+                       "all walkers rejected (best w%d)" % chosen["w"])
+            if not self.pool:
+                outcome += ", retry %d of %d" % (self.retries.get(parent, 0), self.s.max_retries_per_parent)
+        elif accepted is not chosen:
+            outcome = "%s -> node %d (%s of cycle %d)" % (action, child, who, accepted["cycle"])
+        else:
+            outcome = "%s %s -> node %d" % (who, "converged" if verdict == "converged" else "accepted",
+                                             child)
+        if action and accepted is None:
+            outcome += "; " + action
+        before = self.nodes[parent]["metrics"]
+        values = ", ".join("%s %s (%+.2f)" % (m.name, self._value(m, v), v - before[m.name])
+                           for m, v in zip(self.s.metrics, shown["metrics_final"]))
+        line = "cycle %d/%d from node %d: %s | %s" % (cycle, self.s.max_cycles, parent, outcome, values)
+        if len(batch) > 1:
+            spec = self.supervised[0]
+            line += " | %s by walker: %s" % (spec.name, " ".join(
+                "w%d=%s%s" % (r["w"], "%.2f" % r["metrics_final"][spec.number - 1],
+                              "*" if r is chosen else "") for r in batch))
+        return line
 
     def path_to(self, node_id):
         path = []

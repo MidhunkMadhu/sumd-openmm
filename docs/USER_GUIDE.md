@@ -27,6 +27,28 @@ The accepted windows, joined in order, form the trajectory
 `sumd_traj.dcd`. Every accepted state is saved, so any point of the path
 can seed further simulations.
 
+## Reading the progress log
+
+`output_dir/progress.log` (also printed to the screen) has one line per
+cycle:
+
+```
+cycle 7/100 from node 6: walker w3 of 8 accepted -> node 7 | ligand_rmsd 28.41 A (-0.60) | ligand_rmsd by walker: w0=29.10 w1=28.95 w2=29.40 w3=28.41* ...
+```
+
+| Part | Meaning |
+| --- | --- |
+| `cycle 7/100` | Cycle number and `max_cycles` |
+| `from node 6` | Saved state the windows started from |
+| `walker w3 of 8 accepted -> node 7` | Walker whose window was kept (`w3` matches the `_w3` window files and the `walker` column of `nodes.csv`) and the new state it produced. `converged` when the target is reached; `rejected` with the retry count when no window is kept |
+| `ligand_rmsd 28.41 A (-0.60)` | Every metric at the end of the kept window, and its change from the starting state |
+| `by walker: … w3=28.41*` | The first supervised metric at the end of every walker's window; `*` marks the one kept |
+
+With several walkers and the default `walker_acceptance = always`, every
+cycle is accepted: the best walker is always continued, even when the
+metric moved the wrong way. Progress shows in the metric values.
+`nodes.csv` holds the same values for every saved state.
+
 ## Workflow
 
 ```bash

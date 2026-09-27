@@ -5,6 +5,13 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## 0.3.0 (2026-09-27)
+
+Changed
+- Each progress line shows the cycle out of `max_cycles`, the walker
+  kept, every metric at the end of the kept window with its change, and
+  the supervised metric reached by every walker.
+
 ## 0.2.0 (2026-09-27)
 
 Added

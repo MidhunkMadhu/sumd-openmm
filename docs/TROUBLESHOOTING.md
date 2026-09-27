@@ -142,6 +142,12 @@ folder holds a previous run. Choose another `output_dir`, or add
 `--overwrite` to replace it. The output of `--dry-run` is replaced
 without `--overwrite`.
 
+**Every cycle says `accepted` in a multiple-walker run.** mwSuMD always
+continues from the best walker, so cycles are accepted even when the
+metric moved away from the target. Follow the metric values on each
+progress line; `walker_acceptance = sumd` repeats a cycle whose best
+walker made no progress.
+
 **The run is much slower than the `--test` speed of the built-in
 system.** Metrics are computed on the CPU from coordinates copied off
 the GPU every `cv_sample_ps`; with tens of thousands of atoms and a
