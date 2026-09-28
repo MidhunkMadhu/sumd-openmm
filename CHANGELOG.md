@@ -1,11 +1,11 @@
 # Changelog
 
-Versions follow [semantic versioning](https://semver.org): the third
-number changes for bug fixes, the second for new features or changed
-behaviour. `sumd-openmm --version` prints the installed version; install
-a given version with `@vX.Y.Z` in place of `@main`.
+The third number of the version goes up with every push to GitHub; the
+second marks a larger release. `sumd-openmm --version` prints the
+installed version; install a given version with `@vX.Y.Z` in place of
+`@main`.
 
-## Unreleased
+## 0.6.1 (2026-09-28)
 
 Added
 - `check/`, replaced every 10th AcceptedStep while the run goes on, and
