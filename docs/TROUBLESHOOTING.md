@@ -200,6 +200,13 @@ any other protocol.
 defaults`** on Dardel after `module load PDC`. A notice from the Cray
 environment; it does not affect sumd-openmm.
 
+**A script that reads `progress.log` finds no cycle rows, or reads the
+wrong numbers.** The cycle lines are labelled fields
+(`Cycle=12  Window=3  CV1=18.63 A (-1.02)`), and which metric each `CVn`
+is appears on the `CV1 = ...` lines at the top of the log. Read the
+numbers from `windows.csv` or `accepted_steps.csv` instead, which keep
+one column per metric under its name ([outputs](OUTPUTS.md)).
+
 ## Reporting a problem
 
 Include the output of `sumd-openmm --test` from a compute node, the

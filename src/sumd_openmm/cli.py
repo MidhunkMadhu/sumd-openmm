@@ -327,8 +327,8 @@ class SumdRun:
 
     def run(self):
         self.table_layout()
-        getattr(self.log, "row", self.log)(self.table_header(), stamp=False) \
-            if hasattr(self.log, "row") else self.log(self.table_header())
+        for line in self.table_header():
+            self.log(line)
         if not self.nodes:
             root = self.x.root(os.path.join(self.out, self.xml_rel(0)))
             root_memory = {m.name: float(root["metrics"][m.number - 1])
@@ -529,27 +529,23 @@ class SumdRun:
         return min(self.nodes, key=lambda i: self.nodes[i]["progress"])
 
     def _unit(self, spec):
-        return "" if spec.type == "contacts" else " (deg)" if spec.type in ("angle", "dihedral") else " (A)"
+        return "" if spec.type == "contacts" else " deg" if spec.type in ("angle", "dihedral") else " A"
 
     def table_layout(self):
-        """Columns of the per-cycle table; only those that carry information."""
+        """Fields of the per-cycle line; only those that carry information."""
         self.show_walker = self.s.walkers > 1
         self.show_result = not self.s.extends_best_walker
         self.show_step = self.show_result          # otherwise every cycle makes AcceptedStep = cycle
-        self.cv_width = [max(len(m.name + self._unit(m)), 14) for m in self.s.metrics]
-        self.cycle_width = max(5, len(str(self.s.max_cycles)))
+        self.cycle_width = len(str(self.s.max_cycles))
+        self.step_width = len(str(self.s.max_cycles))
+        self.window_width = len(str(self.s.walkers - 1))
         self.expected_start = 0
 
     def table_header(self):
-        cols = ["%*s" % (self.cycle_width, "cycle")]
-        if self.show_step:
-            cols.append("AcceptedStep")
-        if self.show_walker:
-            cols.append("walker")
-        if self.show_result:
-            cols.append("%-12s" % "result")
-        cols += ["%*s" % (w, m.name + self._unit(m)) for m, w in zip(self.s.metrics, self.cv_width)]
-        return "  ".join(cols)
+        """One line per metric: which CVn of the per-cycle lines it is."""
+        units = {"contacts": "", "angle": " (deg)", "dihedral": " (deg)"}
+        return ["CV%d = %s%s" % (i, m.name, units.get(m.type, " (A)"))
+                for i, m in enumerate(self.s.metrics, 1)]
 
     def cycle_report(self, cycle, parent, batch, chosen, accepted, verdict, action, child):
         """One table row: cycle, AcceptedStep made, walker, result, every metric and its change."""
@@ -575,16 +571,16 @@ class SumdRun:
             notes.append("converged")
         self.expected_start = child if child is not None else parent
         before = self.nodes[parent]["metrics"]
-        cols = ["%*d" % (self.cycle_width, cycle)]
+        cols = ["Cycle=%-*d" % (self.cycle_width, cycle)]
         if self.show_step:
-            cols.append("%12s" % (child if child is not None else "-"))
+            cols.append("AcceptedStep=%-*s" % (self.step_width, child if child is not None else "-"))
         if self.show_walker:
-            cols.append("%6s" % ("w%d" % shown["w"]))
+            cols.append("Window=%-*d" % (self.window_width, shown["w"]))
         if self.show_result:
-            cols.append("%-12s" % result)
-        for m, w, v in zip(self.s.metrics, self.cv_width, shown["metrics_final"]):
+            cols.append("Result=%-12s" % result)
+        for i, (m, v) in enumerate(zip(self.s.metrics, shown["metrics_final"]), 1):
             value = "%d" % v if m.type == "contacts" else "%.2f" % v
-            cols.append("%*s" % (w, "%s (%+.2f)" % (value, v - before[m.name])))
+            cols.append("CV%d=%s%s (%+.2f)" % (i, value, self._unit(m), v - before[m.name]))
         return "  ".join(cols) + ("   " + "; ".join(notes) if notes else "")
 
     def path_to(self, node_id):

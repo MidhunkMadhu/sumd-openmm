@@ -5,6 +5,14 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.7.0 (2026-09-28)
+
+Changed
+- Cycle lines of `progress.log` are labelled fields instead of table
+  columns: `Cycle=1  Window=4  CV1=31.41 A (-0.84)`, with
+  `AcceptedStep=` and `Result=` for single-walker SuMD. Lines at the top
+  name each CV (`CV1 = ligand_fitted_rmsd (A)`).
+
 ## 0.6.2 (2026-09-28)
 
 - The 0.6.1 changes below (`check/` snapshots, partial results,

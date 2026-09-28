@@ -32,40 +32,41 @@ simulations.
 ## Reading the progress log
 
 `output_dir/progress.log` (also printed to the screen) starts with one
-line per metric, giving its selections and initial value, then prints
-one table row per cycle. Columns appear only when they carry
-information.
+line per metric, giving its selections and initial value, and one line
+per metric naming the CV it appears as (`CV1`, `CV2`, ...) in the cycle
+lines. It then prints one line per cycle. Fields appear only when they
+carry information.
 
 With several walkers (mwSuMD), every cycle keeps its best walker and
 creates one AcceptedStep, numbered like the cycle:
 
 ```
-          cycle  walker  ligand_rmsd (A)
-00:31:12    186      w4    6.65 (+0.14)
-00:31:41    187      w3    6.74 (+0.08)
-00:32:10    188      w4    6.39 (-0.34)
+[2026-09-28T00:02:40] CV1 = ligand_rmsd (A)
+00:31:12  Cycle=186  Window=4  CV1=6.65 A (+0.14)
+00:31:41  Cycle=187  Window=3  CV1=6.74 A (+0.08)
+00:32:10  Cycle=188  Window=4  CV1=6.39 A (-0.34)
 ```
 
-With one walker (SuMD), a cycle can be rejected, so the table also shows
-the AcceptedStep created (`-` when none) and the result:
+With one walker (SuMD), a cycle can be rejected, so each line also
+shows the AcceptedStep created (`-` when none) and the result:
 
 ```
-          cycle  AcceptedStep  result          ligand_rmsd (A)
-00:12:03     14             8  accepted         18.88 (-1.09)
-00:12:31     15             -  rejected 1/8     18.95 (+0.07)
-00:12:59     16             9  accepted         18.41 (-0.47)
+[2026-09-28T00:02:40] CV1 = ligand_rmsd (A)
+00:12:03  Cycle=14  AcceptedStep=8  Result=accepted      CV1=18.88 A (-1.09)
+00:12:31  Cycle=15  AcceptedStep=-  Result=rejected 1/8  CV1=18.95 A (+0.07)
+00:12:59  Cycle=16  AcceptedStep=9  Result=accepted      CV1=18.41 A (-0.47)
 ```
 
-| Column | Meaning |
+| Field | Meaning |
 | --- | --- |
 | time | Wall-clock time at the end of the cycle |
-| `cycle` | Cycle number |
+| `Cycle` | Cycle number |
 | `AcceptedStep` | The AcceptedStep created by this cycle, or `-` |
-| `walker` | The walker kept (`w4` matches the `_w4` window files and the `walker` columns of the tables) |
-| `result` | `accepted`, `converged`, `rejected n/N` (n of the N retries allowed from the current AcceptedStep), `retry limit`, or `best retry` (the best rejected window kept after the retry limit) |
-| one column per metric | Value at the end of the kept window (or the best window of a rejected cycle) and its change from the starting AcceptedStep |
+| `Window` | The walker kept (`4` matches the `_w4` window files and the `walker` columns of the tables) |
+| `Result` | `accepted`, `converged`, `rejected n/N` (n of the N retries allowed from the current AcceptedStep), `retry limit`, or `best retry` (the best rejected window kept after the retry limit) |
+| `CV1`, `CV2`, ... | Value of each metric, in the order of the lines at the top, at the end of the kept window (or the best window of a rejected cycle), its unit (`A`, `deg`, none for contacts) and its change from the starting AcceptedStep |
 
-A note after a row marks unusual events: `from AcceptedStep 12` when a
+A note after a cycle line marks unusual events: `from AcceptedStep 12` when a
 cycle starts elsewhere than the last AcceptedStep, `back to AcceptedStep
 12` after the retry limit with `on_retry_exhaustion = step_back`, and
 `converged` when the target is reached.
