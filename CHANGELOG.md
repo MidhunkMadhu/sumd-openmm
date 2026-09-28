@@ -5,6 +5,12 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.6.2 (2026-09-28)
+
+- The 0.6.1 changes below (`check/` snapshots, partial results,
+  `--continue`, CUDA and force-switch fixes) are on `main`. No other
+  code changes.
+
 ## 0.6.1 (2026-09-28)
 
 Added
