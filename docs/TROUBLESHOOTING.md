@@ -23,6 +23,33 @@ Load a ROCm 6 module before running, in interactive sessions and job
 scripts alike; on Dardel, `module load PDC rocm/6.4.4`. `sumd-openmm
 --test` prints the ROCm release the plugin needs.
 
+**`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`**, with `CUDA` in the platform
+list. The CUDA toolkit conda installed (`cuda-nvrtc`) is newer than the
+NVIDIA driver supports: conda-forge only requires the same major release,
+so a CUDA 13.4 toolkit is installed next to a CUDA 13.3 driver. OpenMM
+compiles its kernels with that toolkit and the driver refuses them.
+sumd-openmm checks every GPU platform with a small Context before using
+it, and names both versions and the fix:
+
+```bash
+conda install -c conda-forge "cuda-version<=13.3"   # the driver's CUDA version
+```
+
+or update the driver. The `nvidia-smi` header shows the driver's CUDA
+version. The [install command](../README.md#install) pins it for you.
+Kernels cached from an earlier toolkit can make some kernels load and
+others fail, so trust the check rather than a run that worked before.
+
+**`CUDA_ERROR_NO_BINARY_FOR_GPU`** or an unsupported GPU architecture.
+The toolkit is too old for the GPU (e.g. CUDA 12.x before 12.8 on a
+Blackwell RTX 50 GPU). Install a newer `cuda-version` that the driver
+still supports.
+
+**`No GPU platform can run here`.** A GPU platform loaded but could not
+create a Context, and no other GPU platform could either; the message
+gives each platform's error. The run stops rather than use the CPU; set
+`platform = CPU` to run on the CPU deliberately.
+
 **`libcuda.so.1: cannot open shared object file`** on an AMD node. The
 CUDA platform cannot load without an NVIDIA driver; this is expected and
 harmless when `HIP` is listed.
@@ -128,9 +155,9 @@ tasks per node (`--ntasks-per-node` equal to `--gpus-per-node`).
 used by sumd-openmm, so it has no effect. Check the spelling against
 the [user guide](USER_GUIDE.md).
 
-**`p_type must be isotropic or membrane`.** Only these two barostats are
-available; use `isotropic` for soluble systems and `membrane` for
-bilayers.
+**`p_type must be isotropic, membrane or anisotropic`.** Only these
+barostats are available; use `isotropic` for soluble systems, `membrane`
+for bilayers and `anisotropic` to scale each box edge independently.
 
 **`No velocities found in: …` / `genvel = no was requested, so the run
 cannot start without velocities`.** The coordinate file holds positions only (for example a PDB or a

@@ -135,7 +135,7 @@ kelvin and bar; metrics use ångström and degrees.
 | `r_off` | `1.2` | Nonbonded cutoff in nm (Amber `cut`/10) |
 | `vdw` | `Force-switch` | Lennard-Jones treatment. `Force-switch`: forces switched to zero between `r_on` and `r_off`, required by CHARMM force fields (Amber `fswitch`); applied to CHARMM topologies by default and to Amber and GROMACS topologies when written in the input. `Switch`: potential switching. `LJPME`: Lennard-Jones by PME. Any other value: plain cutoff at `r_off` |
 | `r_on` | `1.0` | Start of switching in nm (Amber `fswitch`/10) |
-| `lj_lrc` | `no` | `yes` adds the long-range dispersion correction |
+| `lj_lrc` | `no` | `yes` adds the long-range dispersion correction; `no` removes it. When the key is left out, Amber and GROMACS topologies keep OpenMM's default (correction on) and CHARMM has none. With `vdw = Force-switch` the correction is zero |
 | `e14scale` | `1.0` | Scale factor for 1-4 electrostatic interactions |
 
 ## Pressure
@@ -143,7 +143,7 @@ kelvin and bar; metrics use ångström and degrees.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `pcouple` | `yes` | `yes` adds a Monte Carlo barostat (constant pressure); `no` keeps the volume constant. Set it explicitly: the default is constant pressure |
-| `p_type` | `membrane` | `membrane`: box area and height scaled separately, for bilayers; `isotropic`: all box edges scaled together, for soluble systems |
+| `p_type` | `membrane` | `membrane`: box area and height scaled separately, for bilayers; `isotropic`: all box edges scaled together, for soluble systems; `anisotropic`: each box edge scaled independently (Amber `ntp = 2`) |
 | `p_ref` | `1.0` | Pressure in bar |
 | `p_XYMode` | `XYIsotropic` | Membrane only: `XYIsotropic` or `XYAnisotropic` scaling of the box area |
 | `p_ZMode` | `ZFree` | Membrane only: `ZFree`, `ZFixed` or `ConstantVolume` |

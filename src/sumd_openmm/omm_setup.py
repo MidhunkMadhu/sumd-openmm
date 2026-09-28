@@ -30,6 +30,7 @@ If openmm_production.py is ever refactored into a build_simulation()
 function, re-vendor it and replace build_simulation() here with a call to it.
 """
 
+import os
 import re
 import sys
 
@@ -72,7 +73,79 @@ def rocm_hint(failures):
     return None
 
 
-def choose_platform(requested, enabled, log=print):
+def _cuda_driver_version():
+    """CUDA version the NVIDIA driver supports, e.g. '13.3', or None."""
+    import ctypes
+    try:
+        version = ctypes.c_int()
+        if ctypes.CDLL("libcuda.so.1").cuDriverGetVersion(ctypes.byref(version)) == 0:
+            return "%d.%d" % (version.value // 1000, version.value % 1000 // 10)
+    except Exception:
+        pass
+    return None
+
+
+def _nvrtc_version():
+    """Version of the CUDA runtime compiler in this environment, e.g. '13.4', or None."""
+    import ctypes
+    import glob
+    for path in sorted(glob.glob(os.path.join(sys.prefix, "lib", "libnvrtc.so*"))):
+        try:
+            major, minor = ctypes.c_int(), ctypes.c_int()
+            if ctypes.CDLL(path).nvrtcVersion(ctypes.byref(major), ctypes.byref(minor)) == 0:
+                return "%d.%d" % (major.value, minor.value)
+        except Exception:
+            continue
+    return None
+
+
+def cuda_hint(message):
+    """How to fix a CUDA Context failure whose cause is known, or None."""
+    if "CUDA_ERROR_UNSUPPORTED_PTX_VERSION" in message:
+        driver, nvrtc = _cuda_driver_version(), _nvrtc_version()
+        return ("the CUDA toolkit OpenMM compiles its kernels with (cuda-nvrtc %s) is newer than "
+                "the NVIDIA driver supports (CUDA %s). Install a toolkit the driver supports: "
+                "conda install -c conda-forge \"cuda-version<=%s\", or update the driver"
+                % (nvrtc or "?", driver or "?", driver or "<driver CUDA version>"))
+    lower = message.lower()
+    if ("CUDA_ERROR_NO_BINARY_FOR_GPU" in message or "gpu-architecture" in lower
+            or "unsupported gpu architecture" in lower):
+        driver = _cuda_driver_version()
+        return ("the CUDA toolkit in this environment is too old for this GPU. Install a newer "
+                "one the driver supports: conda install -c conda-forge \"cuda-version=%s\""
+                % (driver or "<driver CUDA version>"))
+    return None
+
+
+_PROBED = {}
+
+
+def platform_problem(name):
+    """
+    None if a Context can be created on this platform, otherwise why not.
+
+    A plugin can load and still fail when the first Context compiles its
+    kernels, e.g. a CUDA toolkit newer than the driver or a GPU the ROCm
+    build does not support. Checked once per platform and process.
+    """
+    if name not in GPU_PLATFORMS:
+        return None
+    if name not in _PROBED:
+        import openmm
+        try:
+            system = openmm.System()
+            system.addParticle(1.0)
+            openmm.Context(system, openmm.VerletIntegrator(0.001),
+                           openmm.Platform.getPlatformByName(name))
+            _PROBED[name] = None
+        except Exception as exc:
+            problem = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
+            hint = cuda_hint(problem) if name == "CUDA" else None
+            _PROBED[name] = problem + ("; " + hint if hint else "")
+    return _PROBED[name]
+
+
+def choose_platform(requested, enabled, log=print, check=None):
     """
     Platform name for `platform = requested`.
 
@@ -80,17 +153,42 @@ def choose_platform(requested, enabled, log=print):
     falls back only to another GPU platform: on an AMD node platform = CUDA
     runs on HIP (or OpenCL), and a node without any GPU platform is an error
     rather than a silent CPU run.
+
+    check(name) returns None if the platform works, or why not
+    (platform_problem). A GPU platform that is listed but cannot run is
+    skipped for another GPU platform; if none works, the run stops instead
+    of falling back to the CPU.
     """
     requested = (requested or "auto").strip()
     if requested.lower() == "auto":
-        name = next((p for p in PLATFORM_ORDER if p in enabled), None)
-    elif requested in enabled:
-        return requested
+        candidates = [p for p in PLATFORM_ORDER if p in enabled]
     elif requested in GPU_PLATFORMS:
-        name = next((p for p in GPU_PLATFORMS if p in enabled), None)
+        candidates = [p for p in GPU_PLATFORMS if p in enabled]
+        if requested in candidates:
+            candidates.remove(requested)
+            candidates.insert(0, requested)
+    elif requested in enabled:
+        candidates = [requested]
     else:
-        name = None
+        candidates = []
+
+    name, broken = None, {}
+    for candidate in candidates:
+        if broken and candidate not in GPU_PLATFORMS:
+            break                     # a GPU is present but unusable: do not run on the CPU
+        problem = check(candidate) if check else None
+        if problem is None:
+            name = candidate
+            break
+        broken[candidate] = problem
+        log("WARNING: platform %s cannot create a Context: %s" % (candidate, problem))
+
     hint = rocm_hint(plugin_failures()) if requested in ("HIP", "auto") else None
+    if name is None and broken:
+        raise PlatformError(
+            "No GPU platform can run here:\n  %s\nFix it, or set platform = CPU to run on the CPU "
+            "on purpose. Run `sumd-openmm --test` to check."
+            % "\n  ".join("%s: %s" % item for item in broken.items()))
     if name is None:
         failures = plugin_failures()
         raise PlatformError(
@@ -100,8 +198,9 @@ def choose_platform(requested, enabled, log=print):
                hint or "NVIDIA GPUs need the CUDA platform and AMD GPUs the HIP platform of "
                "OpenMM, with the matching driver or ROCm runtime loaded. Run "
                "`sumd-openmm --test` on a compute node to check."))
-    if requested.lower() != "auto":
-        log("WARNING: platform %s is not available; using %s" % (requested, name))
+    if requested.lower() != "auto" and name != requested:
+        log("WARNING: platform %s is not %s; using %s"
+            % (requested, "usable" if requested in broken else "available", name))
     if hint and name != "HIP":
         log("NOTE: " + hint)
     return name
@@ -126,6 +225,16 @@ def platform_properties(platform, precision=None, device_index=None, log=print):
     return props
 
 
+def yes_no(value, key):
+    """True or False for a yes/no input value, in any case."""
+    value = str(value).strip().lower()
+    if value in ("yes", "true", "on", "1"):
+        return True
+    if value in ("no", "false", "off", "0"):
+        return False
+    raise ValueError("%s must be yes or no, not %s" % (key, value))
+
+
 def force_switch(prod, system, inputs):
     """
     MD_openmm's CHARMM force switch on an Amber or GROMACS System. It handles
@@ -146,7 +255,7 @@ def force_switch(prod, system, inputs):
 def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     """Build a Simulation from a serialized OpenMM System and a structure."""
     from types import SimpleNamespace
-    from openmm import XmlSerializer, LangevinIntegrator, Platform, MonteCarloBarostat
+    from openmm import XmlSerializer, LangevinIntegrator, Platform
     from openmm.app import PDBFile, PDBxFile, Simulation
     from openmm.unit import kelvin, picosecond, picoseconds
 
@@ -164,7 +273,7 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
     integrator = LangevinIntegrator(temperature * kelvin, friction / picosecond, dt * picoseconds)
     integrator.setRandomNumberSeed(int(integrator_seed))
     requested = cfg.get("platform", "CUDA")
-    name = choose_platform(requested, available_platforms(), log)
+    name = choose_platform(requested, available_platforms(), log, check=platform_problem)
     platform = Platform.getPlatformByName(name)
     props = platform_properties(platform, precision(cfg), device_index, log)
     sim = Simulation(top.topology, system, integrator, platform, props)
@@ -194,7 +303,7 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
         fftype="OPENMM_XML", platform_name=name, platform_request=requested,
         start_info=dict(kind=kind), topfile=topfile, crdfile=crdfile or topfile,
         genvel=genvel, rewrap_coordinates=False, temperature_K=temperature,
-        dt_ps=dt, has_barostat=any(isinstance(f, MonteCarloBarostat)
+        dt_ps=dt, has_barostat=any("Barostat" in type(f).__name__
                                    for f in system.getForces()), device_index=device_index)
 
 
@@ -226,6 +335,12 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     cfg.setdefault("nstep", "0")
 
     inputs = prod.build_inputs(cfg)
+    # MD_openmm compares these with == "yes"; accept Yes, true, on, 1, ...
+    for key in ("pcouple", "lj_lrc", "rest"):
+        setattr(inputs, key, "yes" if yes_no(getattr(inputs, key), key) else "no")
+    if inputs.pcouple == "yes" and "p_type" not in cfg:
+        log("NOTE: p_type not set, so MD_openmm's default membrane barostat is used. Set "
+            "p_type = isotropic for a soluble system, or pcouple = no for constant volume.")
     fftype = prod.get_str(cfg, "force_field", "AMBER").upper()
 
     platform_request = prod.get_str(cfg, "platform", "CUDA")
@@ -314,6 +429,13 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                 force.setUseDispersionCorrection(True)
             if isinstance(force, CustomNonbondedForce) and force.getNumTabulatedFunctions() != 1:
                 force.setUseLongRangeCorrection(True)
+    elif "lj_lrc" in cfg:
+        # Amber and GROMACS topologies switch the correction on by default
+        for force in system.getForces():
+            if isinstance(force, NonbondedForce):
+                force.setUseDispersionCorrection(False)
+            if isinstance(force, CustomNonbondedForce):
+                force.setUseLongRangeCorrection(False)
 
     if inputs.e14scale != 1.0:
         for force in system.getForces():
@@ -324,9 +446,12 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                 break
 
     if inputs.pcouple == "yes":
-        if inputs.p_type not in ("isotropic", "membrane"):
-            raise ValueError("p_type must be isotropic or membrane, not %s" % inputs.p_type)
+        if inputs.p_type not in ("isotropic", "membrane", "anisotropic"):
+            raise ValueError("p_type must be isotropic, membrane or anisotropic, not %s"
+                             % inputs.p_type)
         system = barostat(system, inputs)
+        # a fixed seed (0 draws one from the clock) makes the run reproducible
+        system.getForce(system.getNumForces() - 1).setRandomNumberSeed(int(integrator_seed))
 
     if inputs.rest == "yes":
         log("WARNING: rest = yes is ignored. SuMD windows are unbiased dynamics; "
@@ -337,7 +462,8 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
                                     inputs.dt * picoseconds)
     integrator.setRandomNumberSeed(int(integrator_seed))
 
-    platform_name = choose_platform(platform_request, available_platforms(), log)
+    platform_name = choose_platform(platform_request, available_platforms(), log,
+                                    check=platform_problem)
     platform = Platform.getPlatformByName(platform_name)
     prop = platform_properties(platform, cuda_precision, device_index, log)
 

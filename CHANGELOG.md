@@ -5,6 +5,43 @@ number changes for bug fixes, the second for new features or changed
 behaviour. `sumd-openmm --version` prints the installed version; install
 a given version with `@vX.Y.Z` in place of `@main`.
 
+## Unreleased
+
+Fixed
+- A GPU platform that loads but cannot run, such as CUDA with a toolkit
+  newer than the NVIDIA driver (`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`), is
+  detected with a small Context before use. The run uses another GPU
+  platform if one works, and otherwise stops with the cause and the
+  `cuda-version` to install; it never falls back to the CPU. `--test`
+  reports the same.
+- The install command pins `cuda-version` to the CUDA version the NVIDIA
+  driver supports.
+- `vdw = Force-switch` with `lj_lrc = yes` no longer aborts the process
+  ("Long range correction did not converge"). The switched energy is now
+  zero beyond `r_off`, which also removes a spurious 1-4 Lennard-Jones
+  energy for pairs past the cutoff. CHARMM-GUI protocols with force
+  switching and a dispersion correction hit this at production start.
+- `p_type = anisotropic` works in production (Monte Carlo anisotropic
+  barostat). CHARMM-GUI protocols with Amber `ntp = 2` or GROMACS
+  `pcoupltype = anisotropic` failed after equilibration.
+- `lj_lrc = no` removes the dispersion correction that Amber and GROMACS
+  topologies get by default; leaving the key out keeps that default.
+- `pcouple`, `lj_lrc` and `rest` accept any case and yes/no, true/false,
+  on/off, 1/0; `pcouple = Yes` used to run without a barostat, and an
+  invalid value is now an error.
+- The barostat seed is set from the run's seed, so constant-pressure runs
+  are reproducible from `random_seed`.
+- The force switch keeps a non-periodic cutoff for non-periodic systems.
+- CHARMM `toppar_file` lists resolve relative paths from the list's
+  directory, as in CHARMM-GUI's `toppar.str`, falling back to the
+  current directory.
+- OpenMM XML systems with a membrane or anisotropic barostat are reported
+  as constant pressure.
+
+Changed
+- A barostat chosen by MD_openmm's defaults (`pcouple` and `p_type` left
+  out, giving a membrane barostat) is reported in the log.
+
 ## 0.6.0 (2026-09-28)
 
 Added

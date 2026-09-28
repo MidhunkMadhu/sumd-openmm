@@ -43,11 +43,20 @@ AcceptedSteps can seed unbiased simulations for those.
 ## Install
 
 ```bash
-conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git
+cuda=$(nvidia-smi 2>/dev/null | grep -oE "CUDA[A-Za-z ]*Version: *[0-9]+\.[0-9]+" | grep -oE "[0-9]+\.[0-9]+$")
+conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git \
+    ${cuda:+"cuda-version<=$cuda"}
 conda activate sumd-openmm
 python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
 sumd-openmm --test
 ```
+
+The first line reads the CUDA version the NVIDIA driver supports, and
+`cuda-version<=` keeps conda from installing a newer CUDA toolkit, whose
+kernels that driver cannot load (`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`).
+Without an NVIDIA GPU, on AMD nodes or login nodes, it adds nothing. On a
+cluster whose login nodes have no GPU, set `cuda` by hand to the version
+`nvidia-smi` prints on a compute node.
 
 To run walkers on several GPUs with MPI, install the package with
 mpi4py compiled against the cluster's MPI, in one command on a login

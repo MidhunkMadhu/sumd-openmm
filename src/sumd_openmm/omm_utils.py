@@ -13,9 +13,12 @@ zero at r_off,
     E(r) = A k12 (r^-6 - r_off^-6)^2 - B k6 (r^-3 - r_off^-3)^2,
     k12 = r_off^6 / (r_off^6 - r_on^6),   k6 = r_off^3 / (r_off^3 - r_on^3),
 
-and below r_on the unmodified potential is shifted to join it,
+below r_on the unmodified potential is shifted to join it,
 
     E(r) = A (r^-12 - (r_on r_off)^-6) - B (r^-6 - (r_on r_off)^-3),
+
+and beyond r_off it is zero, so that 1-4 pairs past the cutoff contribute
+nothing and a long-range correction of the switched force is finite (zero).
 
 with A = 4 eps sigma^12 and B = 4 eps sigma^6 (Lorentz-Berthelot), or
 A = a^2 and B = b from NBFIX tables written as (a/r^6)^2 - b/r^6.
@@ -27,14 +30,18 @@ import numpy as np
 
 __all__ = ["barostat", "vfswitch", "rewrap", "read_top", "read_crd", "read_params", "gen_box"]
 
-_SWITCH = ("select(step(r - r_on), A*k12*(1/r^6 - 1/r_off^6)^2 - B*k6*(1/r^3 - 1/r_off^3)^2,"
+_SWITCH = ("step(r_off - r)*select(step(r - r_on),"
+           " A*k12*(1/r^6 - 1/r_off^6)^2 - B*k6*(1/r^3 - 1/r_off^3)^2,"
            " A*(1/r^12 - 1/(r_on*r_off)^6) - B*(1/r^6 - 1/(r_on*r_off)^3));"
            " k12 = r_off^6/(r_off^6 - r_on^6); k6 = r_off^3/(r_off^3 - r_on^3);"
            " r_on = %r; r_off = %r")
 
 
 def barostat(system, inputs):
-    """Add the Monte Carlo barostat named by inputs.p_type (isotropic or membrane)."""
+    """
+    Add the Monte Carlo barostat named by inputs.p_type: isotropic, membrane,
+    or anisotropic (each box edge scaled independently, Amber ntp=2).
+    """
     import openmm
     from openmm import unit
 
@@ -46,8 +53,11 @@ def barostat(system, inputs):
         tension = inputs.p_tens * 10.0 * unit.bar * unit.nanometer      # dyn/cm -> bar nm
         force = openmm.MonteCarloMembraneBarostat(pressure, tension, temperature,
                                                   inputs.p_XYMode, inputs.p_ZMode, inputs.p_freq)
+    elif inputs.p_type == "anisotropic":
+        force = openmm.MonteCarloAnisotropicBarostat(openmm.Vec3(1, 1, 1) * inputs.p_ref * unit.bar,
+                                                     temperature, True, True, True, inputs.p_freq)
     else:
-        raise ValueError("p_type must be isotropic or membrane, not %s" % inputs.p_type)
+        raise ValueError("p_type must be isotropic, membrane or anisotropic, not %s" % inputs.p_type)
     system.addForce(force)
     return system
 
@@ -79,7 +89,9 @@ def vfswitch(system, psf=None, inputs=None, r_on=None, r_off=None):
             " sigma = half_sigma1 + half_sigma2; eps = root_eps1*root_eps2")
         switched.addPerParticleParameter("half_sigma")
         switched.addPerParticleParameter("root_eps")
-        switched.setNonbondedMethod(openmm.CustomNonbondedForce.CutoffPeriodic)
+        periodic = nonbonded.usesPeriodicBoundaryConditions()
+        switched.setNonbondedMethod(openmm.CustomNonbondedForce.CutoffPeriodic if periodic
+                                    else openmm.CustomNonbondedForce.CutoffNonPeriodic)
         switched.setCutoffDistance(nonbonded.getCutoffDistance())
         for i in range(nonbonded.getNumParticles()):
             charge, sigma, epsilon = nonbonded.getParticleParameters(i)
@@ -150,10 +162,18 @@ def read_crd(filename, fftype="CHARMM"):
 
 
 def read_params(filename):
-    """CharmmParameterSet from a list of parameter files, one per line ('!' starts a comment)."""
+    """
+    CharmmParameterSet from a list of parameter files, one per line ('!'
+    starts a comment). A relative path is taken from the list's directory,
+    as in CHARMM-GUI's toppar.str, or else from the current directory.
+    """
+    import os
     from openmm import app
+    here = os.path.dirname(os.path.abspath(filename))
     files = [line.split("!", 1)[0].strip() for line in open(filename)]
-    return app.CharmmParameterSet(*[f for f in files if f])
+    files = [os.path.join(here, f) if os.path.exists(os.path.join(here, f)) else f
+             for f in files if f]
+    return app.CharmmParameterSet(*files)
 
 
 def gen_box(psf, crd):

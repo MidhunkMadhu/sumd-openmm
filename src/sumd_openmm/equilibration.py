@@ -26,7 +26,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from .omm_setup import choose_platform, available_platforms, force_switch, platform_properties, precision
+from .omm_setup import (available_platforms, choose_platform, force_switch, platform_problem,
+                         platform_properties, precision)
 
 TEST_STEPS = 50
 
@@ -142,7 +143,8 @@ class Equilibration:
                                                      stage.dt_ps * unit.picoseconds)
         if self.seed is not None:
             integrator.setRandomNumberSeed(int(self.seed))
-        name = choose_platform(self.platform_request, available_platforms(), self.note)
+        name = choose_platform(self.platform_request, available_platforms(), self.note,
+                               check=platform_problem)
         platform = openmm.Platform.getPlatformByName(name)
         sim = app.Simulation(self.topology, self.system(stage), integrator, platform,
                              platform_properties(platform, self.precision, self.device_index, self.note))

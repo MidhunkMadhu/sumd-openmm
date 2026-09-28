@@ -8,6 +8,9 @@ channels:
 dependencies:
   - python=3.11
   - openmm>=8.0
+  # NVIDIA GPUs: keep the CUDA toolkit at or below what the driver supports
+  # (`nvidia-smi` header), e.g. uncomment and set:
+  # - cuda-version<=12.9
   - parmed
   - numpy
   - scipy

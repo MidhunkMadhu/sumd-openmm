@@ -27,6 +27,34 @@ def test_gpu_request_falls_back_to_another_gpu_only():
         choose_platform("CUDA", ["Reference", "CPU"])
 
 
+def test_unusable_gpu_platform_is_skipped_for_another_gpu():
+    notes = []
+    broken = {"CUDA": "CUDA_ERROR_UNSUPPORTED_PTX_VERSION"}
+    assert choose_platform("auto", ["CPU", "OpenCL", "CUDA"], notes.append, broken.get) == "OpenCL"
+    assert "CUDA cannot create a Context" in notes[0]
+    notes.clear()
+    assert choose_platform("CUDA", ["CPU", "OpenCL", "CUDA"], notes.append, broken.get) == "OpenCL"
+    assert "not usable; using OpenCL" in notes[-1]
+
+
+def test_unusable_gpu_platform_is_not_replaced_by_the_cpu():
+    broken = {"CUDA": "CUDA_ERROR_UNSUPPORTED_PTX_VERSION"}
+    for request in ("auto", "CUDA"):
+        with pytest.raises(PlatformError, match="No GPU platform can run here"):
+            choose_platform(request, ["Reference", "CPU", "CUDA"], lambda _: None, broken.get)
+    assert choose_platform("CPU", ["Reference", "CPU", "CUDA"], check=broken.get) == "CPU"
+
+
+def test_cuda_hint_names_the_fix(monkeypatch):
+    from sumd_openmm import omm_setup
+    monkeypatch.setattr(omm_setup, "_cuda_driver_version", lambda: "13.3")
+    monkeypatch.setattr(omm_setup, "_nvrtc_version", lambda: "13.4")
+    hint = omm_setup.cuda_hint("Error loading CUDA module: CUDA_ERROR_UNSUPPORTED_PTX_VERSION (222)")
+    assert "cuda-nvrtc 13.4" in hint and '"cuda-version<=13.3"' in hint
+    assert '"cuda-version=13.3"' in omm_setup.cuda_hint("CUDA_ERROR_NO_BINARY_FOR_GPU (209)")
+    assert omm_setup.cuda_hint("CUDA_ERROR_OUT_OF_MEMORY") is None
+
+
 def test_cpu_request_is_not_replaced():
     pytest.importorskip("openmm")
     with pytest.raises(PlatformError):

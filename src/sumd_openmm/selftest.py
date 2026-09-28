@@ -113,11 +113,18 @@ def platform_agreement(names, log=print):
     """Forces of the test box on every platform, compared with Reference."""
     import openmm
     from openmm import unit
+    from .omm_setup import cuda_hint, platform_problem
 
     system, positions = _box_system()
     forces, ok = {}, True
     for name in names:
         platform = openmm.Platform.getPlatformByName(name)
+        problem = platform_problem(name)
+        if problem:
+            # checked first: kernels cached by an earlier toolkit can hide the fault
+            ok = False
+            log("platform %s FAILED: %s" % (name, problem))
+            continue
         try:
             integrator = openmm.VerletIntegrator(0.001)
             context = openmm.Context(system, integrator, platform)
@@ -129,7 +136,11 @@ def platform_agreement(names, log=print):
                 unit.kilojoule_per_mole / unit.nanometer)
         except Exception as exc:
             ok = False
-            log("platform %s FAILED: %s" % (name, str(exc).strip().splitlines()[0]))
+            message = str(exc).strip().splitlines()[0]
+            log("platform %s FAILED: %s" % (name, message))
+            hint = cuda_hint(message) if name == "CUDA" else None
+            if hint:
+                log("NOTE: " + hint)
     if "Reference" in forces:
         ref = forces["Reference"]
         for name, f in forces.items():
