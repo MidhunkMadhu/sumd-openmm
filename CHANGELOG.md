@@ -7,6 +7,23 @@ a given version with `@vX.Y.Z` in place of `@main`.
 
 ## Unreleased
 
+Added
+- `check/`, replaced every 10th AcceptedStep while the run goes on, and
+  at its end: the trajectory from the start to that AcceptedStep with every 10th frame
+  (`check/sumd_traj_stride10.dcd`), its OpenMM State
+  (`check/latest_accepted_step.xml`) and `check/latest.json`. The new
+  `check_stride` key sets the thinning (`0` turns it off) and
+  `check_every` how often it is written. `dcdtools.concat_dcds` takes a
+  `stride`.
+- A run stopped by an error, Ctrl-C or SIGTERM (a Slurm time limit)
+  still writes `sumd_traj.dcd`, `final_state.xml`/`.rst7`,
+  `final_path.txt` and `run_summary.json` for the steps accepted so far,
+  marked `"partial": true`.
+- `--continue` and `--extend N` carry a run on in its `output_dir` after
+  `max_cycles`, convergence (with a new target), a crash, a time limit
+  or a `STOP` file. The run saves `resume.json` every cycle; changes
+  that would alter the meaning of the saved AcceptedSteps are refused.
+
 Fixed
 - A GPU platform that loads but cannot run, such as CUDA with a toolkit
   newer than the NVIDIA driver (`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`), is

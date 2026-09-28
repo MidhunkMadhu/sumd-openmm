@@ -3,7 +3,8 @@ dcdtools.py
 
 Concatenate DCD files written by openmm.app.DCDFile, byte for byte, without
 reading coordinates. Used to assemble the final supervised trajectory from
-the accepted per-window DCDs along the root -> final-node path.
+the accepted per-window DCDs along the root -> final-node path, and the
+thinned copy in check/ after every AcceptedStep.
 
 OpenMM DCD layout (openmm/app/dcdfile.py): a 276-byte header whose frame
 count sits at byte 8 and last step at byte 20, then fixed-size frames
@@ -41,10 +42,17 @@ def read_header(path):
                 frame_bytes=frame_bytes, first_step=first_step, interval=interval)
 
 
-def concat_dcds(paths, out_path):
-    """Write the frames of `paths`, in order, into one DCD. Returns frame count."""
+def concat_dcds(paths, out_path, stride=1):
+    """
+    Write the frames of `paths`, in order, into one DCD. Returns frame count.
+
+    With stride N, only every Nth frame is written, counted across the joined
+    trajectory: the result equals the stride = 1 output sliced [::N].
+    """
     if not paths:
         raise ValueError("no DCD files to concatenate")
+    if stride < 1:
+        raise ValueError("stride must be positive")
 
     headers = [read_header(p) for p in paths]
     h0 = headers[0]
@@ -54,23 +62,33 @@ def concat_dcds(paths, out_path):
             raise ValueError("%s: atom count / box flag differs from %s" % (p, paths[0]))
 
     total = sum(h["nframes"] for h in headers)
+    kept = (total + stride - 1) // stride
+    interval = h0["interval"] * stride
     head = bytearray(h0["head"])
-    head[8:12] = struct.pack("<i", total)
-    head[20:24] = struct.pack("<i", h0["first_step"] + (total - 1) * h0["interval"])
+    head[8:12] = struct.pack("<i", kept)
+    head[16:20] = struct.pack("<i", interval)
+    head[20:24] = struct.pack("<i", h0["first_step"] + (kept - 1) * interval)
 
     with open(out_path, "wb") as out:
         out.write(head)
 
-        for p in paths:
+        index = 0
+        for p, h in zip(paths, headers):
             with open(p, "rb") as f:
-                f.seek(HEADER_BYTES)
-                while True:
-                    chunk = f.read(1 << 24)
-                    if not chunk:
-                        break
-                    out.write(chunk)
+                if stride == 1:
+                    f.seek(HEADER_BYTES)
+                    while True:
+                        chunk = f.read(1 << 24)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+                else:
+                    for k in range(-index % stride, h["nframes"], stride):
+                        f.seek(HEADER_BYTES + k * h["frame_bytes"])
+                        out.write(f.read(h["frame_bytes"]))
+            index += h["nframes"]
 
-    return total
+    return kept
 
 
 def read_frames(path):

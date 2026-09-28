@@ -195,6 +195,8 @@ class SumdConfig:
     charmm_gui_format: str = "auto"
     equilibration_dir: str = "equilibration"
     dcd_stride: int = 1
+    check_stride: int = 10
+    check_every: int = 10
     keep_rejected_dcd: bool = False
     write_cv_samples: bool = True
     restore_check: bool = True
@@ -213,7 +215,8 @@ class SumdConfig:
             setattr(c, key, _choice(cfg.get(key, getattr(c, key)), key, options))
         for key in ("band_width", "window_ps", "cv_sample_ps"):
             setattr(c, key, float(cfg.get(key, getattr(c, key))))
-        for key in ("pool_per_cell", "frontier_bands", "max_cycles", "max_retries_per_parent", "dcd_stride"):
+        for key in ("pool_per_cell", "frontier_bands", "max_cycles", "max_retries_per_parent", "dcd_stride",
+                    "check_stride", "check_every"):
             setattr(c, key, int(cfg.get(key, getattr(c, key))))
         for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope", "write_cv_samples"):
             if key in cfg:
@@ -275,6 +278,10 @@ class SumdConfig:
             raise ConfigError("band_width, pool_per_cell, dcd_stride must be positive; retries nonnegative")
         if round(n) % self.dcd_stride:
             raise ConfigError("dcd_stride must divide samples per window so DCD endpoints match saved states")
+        if self.check_stride < 0:
+            raise ConfigError("check_stride must be 0 (off) or positive")
+        if self.check_every <= 0:
+            raise ConfigError("check_every must be positive")
 
     def resolve_walkers(self, n_ranks):
         if self.walkers == 0:

@@ -107,6 +107,8 @@ its centre of geometry. All geometric distances use angstroms.
 | `method` | cMD; cMD | GaMD is refused without a GaMD integrator |
 | `output_dir` | path; `sumd_run` | Existing nonempty output requires `--overwrite` |
 | `dcd_stride` | positive integer; 1 | Save every Nth sampled frame |
+| `check_stride` | integer; 10 | Frames of the path so far kept in `check/`: every Nth; 0 turns `check/` off |
+| `check_every` | positive integer; 10 | Update `check/` every Nth AcceptedStep, and at the end |
 | `keep_rejected_dcd` | yes/no; no | Retain rejected trajectories |
 | `restore_check` | yes/no; yes | Compare potential energies after restores |
 | `parallel` | serial/mpi; serial | MPI requires mpi4py |

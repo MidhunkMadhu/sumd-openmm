@@ -11,7 +11,8 @@ from sumd_openmm.engine import Snap
 BASE = dict(metric_1_type="distance", metric_1_a="indices:0",
             metric_1_b="indices:1", metric_1_role="supervise",
             metric_1_direction="decrease", metric_1_target="-1",
-            window_ps="1", cv_sample_ps="0.1", random_seed="3")
+            window_ps="1", cv_sample_ps="0.1", random_seed="3",
+            check_stride="0")   # its "DCDs" are JSON; test_check.py covers check/
 
 
 def make_config(**over):

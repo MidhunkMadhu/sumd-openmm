@@ -16,8 +16,12 @@ simulation of one walker, kept or not.
 | `windows/accepted/cCCCCC_wW.dcd` | Trajectory of each kept window (cycle C, walker W) |
 | `windows/rejected/` | Trajectories of other windows, with `keep_rejected_dcd = yes` |
 | `sumd_traj.dcd` | The kept windows of the final path, joined in order |
+| `check/sumd_traj_strideN.dcd` | Updated every 10th AcceptedStep (`check_every`) and at the end: the path to it, every Nth frame (`check_stride`, default 10) |
+| `check/latest_accepted_step.xml` | That AcceptedStep's OpenMM State |
+| `check/latest.json` | Which AcceptedStep `check/` holds, its path, frame count and metric values |
 | `final_path.txt` | AcceptedSteps of the final path, with their metric values and trajectories |
 | `final_state.xml`, `final_state.rst7` | Last structure of the final path, as OpenMM State and Amber restart |
+| `resume.json` | State of the run after its last completed cycle, for `--continue` |
 | `run_summary.json` | Input, resolved selections, seeds, platform, stop reason, final and best AcceptedStep |
 | `ranks/rank_NNN.log` | Log of each MPI rank other than 0 |
 | `FATAL_rank_NNN.txt` | Error details if an MPI rank aborts |
@@ -62,6 +66,46 @@ rank, host and GPU, seed and start mode, the energy change on restart,
 the sample times and every metric series, continuous torsion series,
 slope statistics and the stratification cell. Undefined values are JSON
 `null`.
+
+## A run that stops early
+
+If the run stops with an error, Ctrl-C, or SIGTERM (as sent by Slurm at
+the time limit, or by `scancel`), it still writes `sumd_traj.dcd`,
+`final_state.xml`/`.rst7`, `final_path.txt`, `check/` and
+`run_summary.json` for the newest AcceptedStep whose State was saved
+(the most advanced one with stratified seeding), then exits with the
+error. `run_summary.json` then has `"partial": true` and a `stop_reason`
+such as `terminated (signal 15)` or `error: ...`. After a GPU error
+`final_state.rst7` may be missing; the XML is still written. SIGKILL,
+a node failure or a power cut leave nothing to do this, so `check/` and
+the per-step files in `accepted_steps/` and `windows/accepted/` remain
+the record. Under MPI, rank 0 acts on SIGTERM only when the current
+batch returns, so when windows are long ask Slurm for an early warning with
+`#SBATCH --signal=TERM@300` (SIGTERM to the job steps 300 s before the limit).
+
+## check/
+
+A look at a run that is still going. Every `check_every`-th AcceptedStep
+(10, 20, 30, ... by default) and once more when the run ends, `check/`
+is replaced with the trajectory from the starting structure to that
+AcceptedStep, keeping every `check_stride`-th frame (10 by default, so a
+tenth of the data), and that AcceptedStep's State. The trajectory is
+`sumd_traj.dcd` of that path sliced `[::check_stride]`; at the end of a
+chain run it is the final trajectory thinned. Load it with the
+topology, e.g. `vmd system.parm7 check/sumd_traj_stride10.dcd`; the XML
+is a restart point like the files in `accepted_steps/`. Both are written
+to temporary names and renamed, so a reader never sees a half-written
+file. With stratified seeding the newest AcceptedStep is not always the
+most advanced; `latest.json` says which one it is. `check_stride = 1`
+keeps every frame, `check_every = 1` updates it after every AcceptedStep,
+and `check_stride = 0` turns `check/` off. Writing it
+rereads the path's frames each time, so for long paths of large systems
+a larger stride keeps it cheap. A failure to write it is logged as a
+warning and the run continues.
+
+A run that stops early can be continued with `--continue`
+([user guide](USER_GUIDE.md#continuing-a-run)); `run_summary.json`
+then lists each continuation under `continuations`.
 
 ## Checks
 

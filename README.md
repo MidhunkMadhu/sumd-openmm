@@ -117,7 +117,11 @@ sumd-openmm run.inp --dry-run    # selections and initial values
 sumd-openmm run.inp --test       # two short cycles, audited, with speed
 sumd-openmm run.inp
 sumd-inspect sumd_run
+sumd-openmm run.inp --extend 200 # later: 200 more cycles, same output_dir
 ```
+
+A stopped, crashed or timed-out run continues with `--continue`
+([continuing a run](docs/USER_GUIDE.md#continuing-a-run)).
 
 To start from a CHARMM-GUI system instead, replace the first three lines
 with `equilibration = charmm-gui` and `charmm_gui_dir = <folder>`; its

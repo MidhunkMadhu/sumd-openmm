@@ -55,3 +55,25 @@ def test_rejects_non_dcd(tmp_path):
     p.write_bytes(b"\0" * 400)
     with pytest.raises(ValueError):
         dcdtools.read_header(str(p))
+
+
+@pytest.mark.parametrize("stride", [1, 2, 3, 10])
+def test_concat_with_stride_equals_sliced_concat(tmp_path, stride):
+    rng = np.random.default_rng(1)
+    box = np.diag([5.0, 5.0, 7.0])
+    parts = [rng.uniform(0, 5, size=(n, 5, 3)) for n in (4, 3, 7)]
+    paths = []
+    for k, frames in enumerate(parts):
+        paths.append(str(tmp_path / ("p%d.dcd" % k)))
+        write_dcd(paths[-1], frames, box)
+
+    dcdtools.concat_dcds(paths, str(tmp_path / "all.dcd"))
+    full = dcdtools.read_frames(tmp_path / "all.dcd")
+    n = dcdtools.concat_dcds(paths, str(tmp_path / "thin.dcd"), stride)
+    assert n == len(full[::stride])
+    assert np.array_equal(dcdtools.read_frames(tmp_path / "thin.dcd"), full[::stride])
+    h = dcdtools.read_header(str(tmp_path / "thin.dcd"))
+    assert (h["nframes"], h["interval"], h["first_step"]) == (n, 10 * stride, 10)
+
+    mda_dcd = pytest.importorskip("MDAnalysis.coordinates.DCD")
+    assert mda_dcd.DCDReader(str(tmp_path / "thin.dcd")).n_frames == n

@@ -80,6 +80,7 @@ cycle starts elsewhere than the last AcceptedStep, `back to AcceptedStep
 sumd-openmm run.inp --dry-run    # check selections and initial metric values
 sumd-openmm run.inp --test       # two short cycles, audited, with speed
 sumd-openmm run.inp              # the run
+sumd-openmm run.inp --extend 200 # 200 more cycles in the same output_dir
 sumd-inspect sumd_run            # audit the finished run
 ```
 
@@ -88,11 +89,47 @@ sumd-inspect sumd_run            # audit the finished run
 | `--dry-run` | Builds the system and reports what every selection matched and each metric's initial value; no dynamics. A following run replaces its output |
 | `--test` | Two cycles of ten samples in `<output_dir>_test`, then checks of the AcceptedSteps and trajectories and the simulation speed. Without an input file, checks the OpenMM installation on a built-in system |
 | `--overwrite` | Replaces an existing `output_dir` |
+| `--continue` | Continues the run in `output_dir` after its last completed cycle, up to `max_cycles` |
+| `--extend N` | `--continue` for N cycles more than are done, whatever `max_cycles` says |
 | `--version` | Prints the version |
 
 To stop a running job cleanly, create an empty file named `STOP` in
 `output_dir`; the run finishes the current cycle and writes its final
 trajectory and state.
+
+## Continuing a run
+
+A run saves `resume.json` in `output_dir` at the end of every cycle.
+`--continue` (or `--extend N`) picks the run up from there, in the same
+folder: cycle and AcceptedStep numbers carry on, the tables and
+`progress.log` are appended to, and at the end `sumd_traj.dcd` and
+`final_state.*` cover the whole path from the original starting
+structure. It is the same command whatever ended the run:
+
+| The run ended with | To continue |
+| --- | --- |
+| `max_cycles` | `--extend N`, or raise `max_cycles` and use `--continue` |
+| Convergence | Change a supervised metric's `target`/`target_delta`/`tolerance`, then `--extend N` |
+| A time limit, `scancel`, a crash, a lost node | `--continue` (resubmit the same job) |
+| `STOP` file | `--continue`; the `STOP` file is removed |
+
+A cycle that was cut short is run again from its start; its partial
+rows and files are removed first. A rejected window kept as a
+least-bad fallback is not carried over. The integrator and retry seeds
+continue the saved random stream, so no noise is repeated, but the
+continued run is not bit-identical to one that never stopped.
+
+Settings that only affect cycles still to come may change:
+`max_cycles`, `max_retries_per_parent`, `on_retry_exhaustion`,
+`require_significant_slope`, `check_stride`, `check_every`,
+`keep_rejected_dcd`, `restore_check`, `platform` and precision, and the
+MPI layout (`parallel`, `mpi_mode`, `gpu_devices`) as long as the
+number of walkers stays the same. Targets given as `target_delta` are
+still measured from the original starting structure. Anything else,
+such as a metric's selections, `window_ps`, `cv_sample_ps`, the
+seeding, the topology or `dt`, is refused: the saved AcceptedSteps
+would no longer mean the same thing. Start a new run for those, with
+`coordinate_file = <old output_dir>/final_state.xml`.
 
 ## The input file
 
@@ -268,6 +305,8 @@ See [parallel use](PARALLEL.md).
 | --- | --- | --- |
 | `output_dir` | `sumd_run` | Folder of all results |
 | `dcd_stride` | `1` | Trajectory frames kept: every Nth metric sample (must divide the samples per window) |
+| `check_stride` | `10` | `check/` gets the path so far with every Nth trajectory frame (DCD) and the AcceptedStep's State (XML); `0` turns it off |
+| `check_every` | `10` | `check/` is updated every Nth AcceptedStep, and when the run ends |
 | `keep_rejected_dcd` | `no` | `yes` keeps trajectories of rejected windows |
 | `restore_check` | `yes` | Compares the energy after each restart from an AcceptedStep with the saved value |
 | `write_cv_samples` | `yes` | Writes every metric sample of every window to `cv_samples.csv` |
