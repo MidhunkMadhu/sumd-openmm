@@ -105,7 +105,7 @@ its centre of geometry. All geometric distances use angstroms.
 | `slope_points` | all/5; all | Five-point estimate requires at least eight samples |
 | `random_seed` | integer; random | Seeds integrators and retries |
 | `method` | cMD; cMD | GaMD is refused without a GaMD integrator |
-| `output_dir` | path; `sumd_run` | Existing nonempty output requires `--overwrite` |
+| `output_dir` | path; `sumd_run` | An existing run in it is renamed to `<output_dir>_old00001` (the first free number) before the new run starts; `--overwrite` deletes it instead |
 | `dcd_stride` | positive integer; 1 | Save every Nth sampled frame |
 | `check_stride` | integer; 10 | Frames of the path so far kept in `check/`: every Nth; 0 turns `check/` off |
 | `check_every` | positive integer; 10 | Update `check/` every Nth AcceptedStep, and at the end |

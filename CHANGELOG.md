@@ -5,6 +5,16 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.8.0 (2026-09-29)
+
+Changed
+- A run whose `output_dir` holds an earlier run renames that folder to
+  `<output_dir>_old00001` (or the first free number: `_old00002`, ...)
+  and starts, instead of stopping with `output_dir exists`. The new
+  `progress.log` names the renamed folder. `--overwrite` still deletes
+  it. A run with an input file inside that folder stops with a message
+  naming the input.
+
 ## 0.7.2 (2026-09-28)
 
 Documentation

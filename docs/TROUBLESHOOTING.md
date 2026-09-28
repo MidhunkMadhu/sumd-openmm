@@ -164,10 +164,18 @@ cannot start without velocities`.** The coordinate file holds positions only (fo
 minimized structure). Set `genvel = yes` to draw velocities at `temp`, or
 start from a restart file of an equilibration.
 
-**`output_dir exists; choose another or use --overwrite`.** The output
-folder holds a previous run. Choose another `output_dir`, or add
-`--overwrite` to replace it. The output of `--dry-run` is replaced
-without `--overwrite`.
+**A folder `sumd_run_old00001` (or `_old00002`, ...) appears next to
+`output_dir`.** The output folder held an earlier run, so it was renamed
+with the first free number and the new run started in an empty
+`output_dir`; the first lines of `progress.log` name the renamed folder.
+To carry the earlier run on instead, use `--continue` or `--extend N`;
+to delete it, `--overwrite`. The output of `--dry-run` is replaced
+without renaming.
+
+**`output_dir … holds an input of this run (coordinate_file = …)`.** An
+input file, such as `coordinate_file = sumd_run/final_state.rst7`, lies
+inside the output folder of the earlier run, which would be renamed.
+Choose another `output_dir` for the new run, e.g. `sumd_run2`.
 
 **A multiple-walker run never rejects a cycle.** mwSuMD always continues
 from the best walker, so every cycle creates an AcceptedStep, even when

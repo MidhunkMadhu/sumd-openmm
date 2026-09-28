@@ -50,9 +50,11 @@ def test_xml_run_and_inspection(tmp_path):
     # the output of a dry run does not block the run that follows it
     run = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
+    # a second run renames the first one's output_dir and starts
     again = subprocess.run(cmd, cwd=tmp_path, capture_output=True, text=True)
-    assert again.returncode == 2 and "output_dir exists" in again.stderr
-    assert "Traceback" not in again.stderr
+    assert again.returncode == 0, again.stderr
+    assert (tmp_path / "output_old00001" / "run_summary.json").exists()
+    assert "renamed to output_old00001" in (tmp_path / "output" / "progress.log").read_text()
     report = inspect(str(tmp_path / "output"))
     assert report["windows_simulated"] > 0
     assert report["max_dcd_vs_state_mismatch_A"] is not None

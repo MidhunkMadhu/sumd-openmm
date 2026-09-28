@@ -610,6 +610,28 @@ def _metric_summary(row, spec):
         spec.name, spec.type, spec.role, goal, "; ".join(parts), row["initial_value"])
 
 
+def _set_aside(outdir, input_file):
+    """Rename an existing output_dir to <output_dir>_oldNNNNN (the first free number)."""
+    inside = []
+    base = os.path.dirname(os.path.abspath(input_file))
+    for key, value in read_key_value_file(input_file).items():
+        if key == "output_dir" or not value:
+            continue
+        for path in {os.path.abspath(value), os.path.abspath(os.path.join(base, value))}:
+            if os.path.exists(path) and os.path.commonpath([path, outdir]) == outdir:
+                inside.append("%s = %s" % (key, value))
+                break
+    if inside:
+        raise ConfigError("output_dir %s holds an input of this run (%s); choose another "
+                          "output_dir" % (outdir, ", ".join(inside)))
+    n = 1
+    while os.path.exists("%s_old%05d" % (outdir, n)):
+        n += 1
+    old = "%s_old%05d" % (outdir, n)
+    os.rename(outdir, old)
+    return old
+
+
 def _only_dry_run(outdir):
     """True when output_dir holds nothing but the output of --dry-run."""
     try:
@@ -792,7 +814,7 @@ def run(args, scfg, comm=None):
     rank, size = (comm.rank, comm.Get_size()) if comm is not None else (0, 1)
     root = rank == 0
     outdir = os.path.abspath(scfg.output_dir)
-    resume = retargeted = None
+    resume = retargeted = set_aside = None
     if root and args.resume:
         resume = load_resume(outdir)
         if args.extend:
@@ -801,9 +823,10 @@ def run(args, scfg, comm=None):
         prepare_continue(outdir, resume)
     elif root:
         if os.path.isdir(outdir) and os.listdir(outdir) and not (args.overwrite or args.dry_run):
-            if not _only_dry_run(outdir):
-                raise ConfigError("output_dir exists; choose another or use --overwrite")
-            shutil.rmtree(outdir)
+            if _only_dry_run(outdir):
+                shutil.rmtree(outdir)
+            else:
+                set_aside = _set_aside(outdir, args.input_file)
         if args.overwrite and os.path.isdir(outdir):
             shutil.rmtree(outdir)
         for folder in ("accepted_steps", "windows/accepted", "windows/tmp", "windows/rejected", "ranks"):
@@ -828,6 +851,9 @@ def run(args, scfg, comm=None):
             sys.stdout = sys.stderr = handle
     log = (RunLog(outdir, [m.name for m in scfg.metrics], scfg.write_cv_samples, append=bool(resume))
            if root else print)
+    if set_aside:
+        log("output_dir %s held an earlier run; it was renamed to %s"
+            % (scfg.output_dir, os.path.basename(set_aside)))
     if resume:
         log("continuing after cycle %d (AcceptedStep %d, %s), up to cycle %d"
             % (resume["last_cycle"], resume["parent"], resume["stop_reason"] or "interrupted",
@@ -1022,7 +1048,7 @@ def main(argv=None):
     ap.add_argument("--test", action="store_true",
                     help="without an input file: check OpenMM platforms and run a built-in system; "
                          "with one: run two short cycles in <output_dir>_test and audit them")
-    ap.add_argument("--overwrite", action="store_true", help="replace existing output directory")
+    ap.add_argument("--overwrite", action="store_true", help="delete an existing output directory instead of renaming it")
     ap.add_argument("--continue", dest="resume", action="store_true",
                     help="continue the run in output_dir after its last completed cycle "
                          "(raise max_cycles, or use --extend)")

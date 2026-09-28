@@ -89,7 +89,7 @@ sumd-inspect sumd_run            # audit the finished run
 | --- | --- |
 | `--dry-run` | Builds the system and reports what every selection matched and each metric's initial value; no dynamics. A following run replaces its output |
 | `--test` | Two cycles of ten samples in `<output_dir>_test`, then checks of the AcceptedSteps and trajectories and the simulation speed. Without an input file, checks the OpenMM installation on a built-in system |
-| `--overwrite` | Replaces an existing `output_dir` |
+| `--overwrite` | Deletes an existing `output_dir` instead of renaming it |
 | `--continue` | Continues the run in `output_dir` after its last completed cycle, up to `max_cycles` |
 | `--extend N` | `--continue` for N cycles more than are done, whatever `max_cycles` says |
 | `--version` | Prints the version |
