@@ -42,6 +42,24 @@ AcceptedSteps can seed unbiased simulations for those.
 
 ## Install
 
+Every setup starts from a conda environment with OpenMM from
+conda-forge. Choose the section that matches the hardware the
+simulations run on.
+
+### CPU only
+
+```bash
+conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git
+conda activate sumd-openmm
+python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
+sumd-openmm --test
+```
+
+Runs use the OpenMM `CPU` platform. This is enough to prepare inputs,
+test a configuration and run small systems.
+
+### NVIDIA GPUs (CUDA)
+
 ```bash
 cuda=$(nvidia-smi 2>/dev/null | grep -oE "CUDA[A-Za-z ]*Version: *[0-9]+\.[0-9]+" | grep -oE "[0-9]+\.[0-9]+$")
 conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git \
@@ -51,34 +69,60 @@ python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-op
 sumd-openmm --test
 ```
 
-The first line reads the CUDA version the NVIDIA driver supports, and
-`cuda-version<=` keeps conda from installing a newer CUDA toolkit, whose
-kernels that driver cannot load (`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`).
-Without an NVIDIA GPU, on AMD nodes or login nodes, it adds nothing. On a
-cluster whose login nodes have no GPU, set `cuda` by hand to the version
-`nvidia-smi` prints on a compute node.
+The first line reads the highest CUDA version the NVIDIA driver
+supports (for example `12.4`), and `cuda-version<=` keeps conda from
+installing a newer CUDA toolkit, whose kernels that driver cannot load
+(`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`). On a cluster whose login nodes
+have no GPU, set it by hand to the version `nvidia-smi` prints on a
+compute node, e.g. `cuda=12.4`. `sumd-openmm --test` on a GPU node
+should list the `CUDA` platform.
 
-To run walkers on several GPUs with MPI, install the package with
-mpi4py compiled against the cluster's MPI, in one command on a login
-node:
+### AMD GPUs (HIP)
+
+```bash
+conda create -n sumd-openmm -c conda-forge python=3.11 openmm parmed numpy scipy pip git
+conda activate sumd-openmm
+python -m pip install "sumd-openmm @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
+module load rocm/6.4.4          # a ROCm 6 runtime; on Dardel: module load PDC rocm/6.4.4
+sumd-openmm --test
+```
+
+The `HIP` platform of conda-forge OpenMM 8.6.1 needs a ROCm 6 runtime,
+which comes from the cluster's ROCm module, not from conda; ROCm 7
+modules do not work. Load the ROCm 6 module in every interactive session
+and job script before running. `sumd-openmm --test` on a GPU node should
+list the `HIP` platform; [parallel use](docs/PARALLEL.md) gives the
+versions tested on Dardel (AMD MI250X).
+
+### Several GPUs with MPI (mpi4py)
+
+Without MPI (`parallel = serial`), all walkers run one after another in
+one process on one GPU or the CPU. Running walkers at the same time, one
+per GPU on one node or across nodes (`parallel = mpi`), needs mpi4py
+compiled against the cluster's MPI. In the environment made above, on a
+login node, install the package with its `mpi` extra instead of the
+plain `pip install` line:
 
 ```bash
 MPICC=mpicc pip install --no-binary mpi4py \
     "sumd-openmm[mpi] @ git+https://github.com/MidhunkMadhu/sumd-openmm.git"
 ```
 
-On HPE Cray systems (Dardel, LUMI) use `MPICC="cc -shared"`.
-`--no-binary mpi4py` makes pip compile mpi4py instead of using a prebuilt
-copy linked to another MPI.
+On HPE Cray systems (Dardel, LUMI), load the MPI environment first
+(`module load PDC` on Dardel) and use `MPICC="cc -shared"`.
+`--no-binary mpi4py` makes pip compile mpi4py instead of using a
+prebuilt copy linked to another MPI, which is what `pip install mpi4py`
+or `conda install mpi4py` alone gives. `sumd-openmm --test` prints the
+MPI library mpi4py uses.
+
+### Versions and local checkout
 
 `sumd-openmm --version` prints the installed version. To install a
-particular release, replace `.git` with `.git@v0.2.0` (any tag listed in
+particular release, replace `.git` with `.git@v0.7.0` (any tag listed in
 the [changelog](CHANGELOG.md)).
 
 For a local checkout, `conda env create -f environment.yml` followed by
-`python -m pip install -e .`. VMD-like selections need `MDAnalysis`. AMD
-GPUs need a ROCm 6 runtime; [parallel use](docs/PARALLEL.md) gives a
-generic GPU job script and tested versions for Dardel.
+`python -m pip install -e .`. VMD-like selections need `MDAnalysis`.
 
 `sumd-openmm --test` lists the OpenMM platforms available and the MPI
 library mpi4py uses, checks that the platforms compute the same forces,

@@ -5,6 +5,12 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.7.1 (2026-09-28)
+
+Documentation
+- The README install section has one part each for CPU only, NVIDIA
+  GPUs (CUDA), AMD GPUs (HIP) and several GPUs with MPI (mpi4py).
+
 ## 0.7.0 (2026-09-28)
 
 Changed
