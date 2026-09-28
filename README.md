@@ -115,20 +115,38 @@ prebuilt copy linked to another MPI, which is what `pip install mpi4py`
 or `conda install mpi4py` alone gives. `sumd-openmm --test` prints the
 MPI library mpi4py uses.
 
-### Versions and local checkout
+### Install from source
 
-`sumd-openmm --version` prints the installed version. To install a
-particular release, replace `.git` with `.git@v0.7.0` (any tag listed in
-the [changelog](CHANGELOG.md)).
+To read or change the code, clone the repository and install it in
+editable mode:
 
-For a local checkout, `conda env create -f environment.yml` followed by
-`python -m pip install -e .`. VMD-like selections need `MDAnalysis`.
+```bash
+git clone https://github.com/MidhunkMadhu/sumd-openmm.git
+cd sumd-openmm
+conda env create -f environment.yml
+conda activate sumd-openmm
+python -m pip install -e .
+sumd-openmm --test
+```
+
+`environment.yml` creates the `sumd-openmm` environment with OpenMM, the
+other dependencies and `pytest` for the tests in `tests/`. With
+`pip install -e .` Python runs the code from the cloned folder, so
+changes to the files take effect without installing again. For an NVIDIA
+GPU, set `cuda-version` in `environment.yml` as described above; for
+MPI on a cluster, remove `mpi4py` from it and build mpi4py as in the
+previous section.
+
+### Checking the installation
 
 `sumd-openmm --test` lists the OpenMM platforms available and the MPI
 library mpi4py uses, checks that the platforms compute the same forces,
-and runs two SuMD cycles of a built-in system. [Troubleshooting](docs/TROUBLESHOOTING.md) covers common
-installation and cluster problems: ROCm versions, mpi4py, conda in batch
-jobs and others.
+and runs two SuMD cycles of a built-in system. `sumd-openmm --version`
+prints the installed version. VMD-like selections need `MDAnalysis`
+(`conda install -c conda-forge mdanalysis`).
+[Troubleshooting](docs/TROUBLESHOOTING.md) covers common installation
+and cluster problems: ROCm versions, mpi4py, conda in batch jobs and
+others.
 
 ## Quick start
 

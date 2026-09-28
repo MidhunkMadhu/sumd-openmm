@@ -5,6 +5,13 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.7.2 (2026-09-28)
+
+Documentation
+- README: "Install from source" explains the clone and editable install
+  for changing the code; "Checking the installation" describes
+  `--test`, `--version` and MDAnalysis.
+
 ## 0.7.1 (2026-09-28)
 
 Documentation
