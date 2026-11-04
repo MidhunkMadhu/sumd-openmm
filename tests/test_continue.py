@@ -43,7 +43,7 @@ def _audit(out, cycles):
     with open(out / "resume.json") as fh:
         state = json.load(fh)
     assert state["last_cycle"] == cycles and len(state["nodes"]) == len(steps)
-    kept = sorted(os.listdir(out / "windows" / "accepted"))
+    kept = sorted(f for f in os.listdir(out / "windows" / "accepted") if f.endswith(".dcd"))
     assert kept == sorted(os.path.basename(s["trajectory"]) for s in steps[1:])
     assert not os.listdir(out / "windows" / "tmp")
     report = inspect(str(out))

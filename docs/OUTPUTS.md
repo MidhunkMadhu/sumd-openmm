@@ -13,10 +13,12 @@ simulation of one walker, kept or not.
 | `cv_samples.csv` | Every metric sample of every window (`write_cv_samples = no` omits it) |
 | `windows.jsonl` | Full record of every window, one JSON object per line |
 | `accepted_steps/accepted_step_NNNNNN.xml` | OpenMM State (coordinates, velocities, box) of each AcceptedStep; a restart point |
-| `windows/accepted/cCCCCC_wW.dcd` | Trajectory of each kept window (cycle C, walker W) |
-| `windows/rejected/` | Trajectories of other windows, with `keep_rejected_dcd = yes` |
+| `windows/accepted/cCCCCC_wW.dcd`, `.log` | Trajectory and energy log of each kept window (cycle C, walker W) |
+| `windows/rejected/` | Trajectories and energy logs of other windows, with `keep_rejected_dcd = yes` |
 | `sumd_traj.dcd` | The kept windows of the final path, joined in order |
+| `sumd_energy.log` | Energy log of the final path, joined in the same order |
 | `check/sumd_traj_strideN.dcd` | Updated every 10th AcceptedStep (`check_every`) and at the end: the path to it, every Nth frame (`check_stride`, default 10) |
+| `check/sumd_energy_log.csv` | Energy log of that path, every row |
 | `check/latest_accepted_step.xml` | That AcceptedStep's OpenMM State |
 | `check/latest.json` | Which AcceptedStep `check/` holds, its path, frame count and metric values |
 | `final_path.txt` | AcceptedSteps of the final path, with their metric values and trajectories |
@@ -82,6 +84,46 @@ the per-step files in `accepted_steps/` and `windows/accepted/` remain
 the record. Under MPI, rank 0 acts on SIGTERM only when the current
 batch returns, so when windows are long ask Slurm for an early warning with
 `#SBATCH --signal=TERM@300` (SIGTERM to the job steps 300 s before the limit).
+
+## Energy logs
+
+Each window writes a CSV energy log, the counterpart of a GROMACS
+`md.log` or an Amber `mdout`, next to its DCD. A row is written every
+`log_stride`-th metric sample, by default once per DCD frame, so row N of
+`sumd_energy.log` is frame N of `sumd_traj.dcd`, and the last row of a
+window is the saved State of its AcceptedStep. `sumd_energy.log` holds
+only the windows of the final path, in order: a kept window that a
+`step_back` abandoned is left out, as it is from the trajectory.
+`run_summary.json` gives the mean and standard deviation of each column
+under `energy_log`.
+
+| Column | Contents |
+| --- | --- |
+| `Step`, `Time_ps` | MD step and simulation time, continuous along the path |
+| `Cycle`, `AcceptedStep`, `Walker` | The window the row belongs to (joined logs only) |
+| `Epot_kJmol`, `Ekin_kJmol`, `Etot_kJmol` | Potential, kinetic and total energy |
+| `Temp_K` | Instantaneous temperature, as in OpenMM's `StateDataReporter` |
+| `Volume_nm3`, `Density_gmL` | Box volume and density; empty without periodic boundaries |
+| one column per metric | Metric value at that sample, as in `cv_samples.csv` |
+
+`energy_terms = yes` adds the potential energy by term, after
+`Density_gmL`. The terms add up to `Epot_kJmol`.
+
+| Column | Contents |
+| --- | --- |
+| `E_bond` | Bonds, including Urey-Bradley terms |
+| `E_angle` | Angles |
+| `E_dihedral` | Proper and improper dihedrals, and CMAP |
+| `E_vdw` | Lennard-Jones, including 1-4 pairs, when it is held apart from electrostatics (`vdw = Force-switch`, NBFIX tables) |
+| `E_elec_direct` | Real-space electrostatics, including 1-4 pairs, with `vdw = Force-switch` |
+| `E_nonbonded` | Real-space electrostatics and Lennard-Jones together, in place of `E_elec_direct`, when OpenMM holds them in one force |
+| `E_elec_recip` | Reciprocal-space electrostatics (PME, Ewald) |
+| `E_nonbonded_recip` | Reciprocal-space electrostatics and Lennard-Jones, with LJPME |
+| `E_other` | Any other force |
+
+A column appears only if the system has that term. Each row costs extra
+energy evaluations, one for the totals and one per term, so a small
+`log_stride` slows a run; `log_stride = 0` turns the logs off.
 
 ## check/
 

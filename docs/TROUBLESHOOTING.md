@@ -215,6 +215,29 @@ is appears on the `CV1 = ...` lines at the top of the log. Read the
 numbers from `windows.csv` or `accepted_steps.csv` instead, which keep
 one column per metric under its name ([outputs](OUTPUTS.md)).
 
+**No `sumd_energy.log` at the end of a run.** The final path has no kept
+window, or `log_stride = 0`. Check `accepted_steps.csv` for AcceptedSteps
+past 0.
+
+**`sumd_energy.log` starts later than `sumd_traj.dcd`, or a column is
+empty in its first rows.** The run was continued with `--continue`, and
+its earlier windows were written without a log (a version before 0.9.0)
+or with other settings. Windows without a log are left out, so row N no
+longer matches frame N; windows without `energy_terms` leave those columns
+empty. Start a new run for a log that covers the whole path.
+
+**`Temp_K` or `Ekin_kJmol` jumps between two windows in `sumd_energy.log`.**
+A window that starts with reassigned velocities begins from a fresh
+Maxwell-Boltzmann draw. The `Cycle` column shows where windows meet.
+
+**No `E_vdw` column with `energy_terms = yes`.** Lennard-Jones and
+real-space electrostatics share one OpenMM force unless `vdw =
+Force-switch` separates them, so they appear together as `E_nonbonded`.
+
+**A run is slower with energy logs.** Each row needs an energy evaluation,
+and `energy_terms = yes` adds one per term. With `dcd_stride = 1` and a
+short `cv_sample_ps` that is frequent; set a larger `log_stride`.
+
 ## Reporting a problem
 
 Include the output of `sumd-openmm --test` from a compute node, the

@@ -15,7 +15,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from . import __version__, cv, dcdtools, selection
+from . import __version__, cv, dcdtools, energylog, selection
 from .charmmgui import CharmmGuiError
 from .config import _MD_KEYS, ConfigError, SumdConfig, read_key_value_file
 from .engine import Engine
@@ -195,8 +195,17 @@ class SumdRun:
 
     def keep_dcd(self, path, cycle, walker):
         relative = os.path.join("windows", "accepted", "c%05d_w%d.dcd" % (cycle, walker))
-        shutil.move(path, os.path.join(self.out, relative))
+        target = os.path.join(self.out, relative)
+        shutil.move(path, target)
+        if os.path.exists(energylog.log_path(path)):
+            shutil.move(energylog.log_path(path), energylog.log_path(target))
         return relative
+
+    def path_logs(self, nid):
+        """The energy log of every window on the path to AcceptedStep `nid`, for join_logs."""
+        return [(energylog.log_path(os.path.join(self.out, self.nodes[i]["dcd"])),
+                 self.nodes[i]["cycle"], i, self.nodes[i]["walker"])
+                for i in self.path_to(nid) if self.nodes[i]["dcd"]]
 
     def write_check(self, nid):
         """
@@ -212,10 +221,13 @@ class SumdRun:
                 if self.nodes[i]["dcd"]]
         traj = os.path.join(folder, "sumd_traj_stride%d.dcd" % self.s.check_stride)
         state = os.path.join(folder, "latest_accepted_step.xml")
+        energy = os.path.join(folder, energylog.CHECK_LOG)
         try:
             os.makedirs(folder, exist_ok=True)
             frames = dcdtools.concat_dcds(dcds, traj + ".tmp", self.s.check_stride)
             shutil.copyfile(os.path.join(self.out, node["state_xml"]), state + ".tmp")
+            if energylog.join_logs(self.path_logs(nid), energy + ".tmp"):
+                os.replace(energy + ".tmp", energy)
             os.replace(traj + ".tmp", traj)
             os.replace(state + ".tmp", state)
             _write_json(os.path.join(folder, "latest.json"),
@@ -229,12 +241,15 @@ class SumdRun:
             self.log("WARNING: check/ not updated for AcceptedStep %d: %s" % (nid, exc))
 
     def drop_dcd(self, path):
-        if not path or not os.path.exists(path):
+        if not path:
             return
-        if self.s.keep_rejected_dcd:
-            shutil.move(path, os.path.join(self.out, "windows", "rejected", os.path.basename(path)))
-        else:
-            os.remove(path)
+        for item in (path, energylog.log_path(path)):
+            if not os.path.exists(item):
+                continue
+            if self.s.keep_rejected_dcd:
+                shutil.move(item, os.path.join(self.out, "windows", "rejected", os.path.basename(item)))
+            else:
+                os.remove(item)
 
     def analyse(self, result, parent):
         raw = np.asarray(result["metrics"], float)
@@ -717,7 +732,7 @@ def equilibrate(args, scfg, cfg, comm, log, device, root):
 # Settings --continue may change: they only affect cycles still to run.
 CONTINUE_MAY_CHANGE = {"max_cycles", "max_retries_per_parent", "on_retry_exhaustion",
                        "require_significant_slope", "check_stride", "check_every",
-                       "keep_rejected_dcd", "restore_check", "random_seed", "parallel",
+                       "log_stride", "energy_terms", "keep_rejected_dcd", "restore_check", "random_seed", "parallel",
                        "mpi_mode", "gpu_devices", "walkers", "output_dir"}
 TARGET_KEYS = ("target", "target_delta", "tolerance")
 MD_MAY_CHANGE = {"platform", "cuda_precision", "precision"}
@@ -889,7 +904,8 @@ def run(args, scfg, comm=None):
     topfile = prod.get_str(cfg, "topology_file", required=True)
     base = os.path.dirname(os.path.abspath(args.input_file))
     evaluator, report = selection.resolve(scfg, topfile, base)
-    omm = build_simulation(prod, cfg, seeds[rank], log=log, device_index=my_device)
+    omm = build_simulation(prod, cfg, seeds[rank], log=log, device_index=my_device,
+                           energy_terms=scfg.energy_terms and scfg.energy_log_stride > 0)
     if root and equilibrated and equilibrated["format"] == "AMBER" and not args.dry_run:
         equilibrated["rst7"] = prod.write_amber_restart(
             omm.simulation, os.path.join(equilibrated["dir"], "equilibrated.rst7"),
@@ -915,7 +931,7 @@ def run(args, scfg, comm=None):
         raise ConfigError("cv_sample_ps must be a multiple of dt")
     worker = RankWorker(engine, evaluator, outdir, scfg.samples_per_window, int(round(sps)),
                         scfg.dcd_stride, scfg.restore_check, rank=rank,
-                        host=socket.gethostname(), device=my_device)
+                        host=socket.gethostname(), device=my_device, log_stride=scfg.energy_log_stride)
     if not root:
         if not args.dry_run:
             worker_loop(comm, worker)
@@ -1003,7 +1019,7 @@ def _early_stop_reason(exc):
 
 def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summary_path, log,
             partial=False):
-    """sumd_traj.dcd, final_state.xml/.rst7, final_path.txt and run_summary.json for `final`."""
+    """sumd_traj.dcd, sumd_energy.log, final_state.xml/.rst7, final_path.txt and run_summary.json for `final`."""
     path = runner.path_to(final)
     dcds = [runner.nodes[i]["dcd"] for i in path if runner.nodes[i]["dcd"]]
     with open(os.path.join(outdir, "final_path.txt"), "w") as fh:
@@ -1014,6 +1030,14 @@ def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summ
                      json.dumps(node["metrics"]), node["dcd"]))
     frames = (dcdtools.concat_dcds([os.path.join(outdir, p) for p in dcds],
               os.path.join(outdir, "sumd_traj.dcd")) if dcds else 0)
+    energy = None
+    try:
+        energy_path = os.path.join(outdir, energylog.FINAL_LOG)
+        rows = energylog.join_logs(runner.path_logs(final), energy_path)
+        if rows:
+            energy = dict(file=energylog.FINAL_LOG, rows=rows, columns=energylog.summarise(energy_path))
+    except (OSError, ValueError) as exc:
+        log("WARNING: %s not written: %s" % (energylog.FINAL_LOG, exc))
     last = runner.nodes[final]
     final_xml = os.path.join(outdir, "final_state.xml")
     shutil.copyfile(os.path.join(outdir, last["state_xml"]), final_xml)
@@ -1035,6 +1059,7 @@ def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summ
                    best_metrics=runner.nodes[runner.best_node()]["metrics"],
                    final_traj=dict(file="sumd_traj.dcd" if dcds else None,
                                    windows=len(dcds), frames=frames),
+                   energy_log=energy,
                    final_state_xml=final_xml, final_state_rst7=rst7, partial=partial)
     _write_json(summary_path, summary)
     log("%s: %s; final AcceptedStep %d; %d frames"

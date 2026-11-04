@@ -6,6 +6,7 @@ import os
 import numpy as np
 
 from sumd_openmm.config import SumdConfig
+from sumd_openmm.energylog import COLUMNS
 from sumd_openmm.engine import Snap
 
 BASE = dict(metric_1_type="distance", metric_1_a="indices:0",
@@ -58,16 +59,23 @@ class FakeEngine:
     def current_cvs(self, evaluator):
         return self.values.copy()
 
-    def run_window(self, n_samples, steps_per_sample, evaluator, dcd_path, stride):
-        times, rows = [], []
+    def run_window(self, n_samples, steps_per_sample, evaluator, dcd_path, stride,
+                   log_path=None, log_stride=0):
+        times, rows, log = [], [], []
         for i in range(n_samples):
             self.values += self.drift + self.noise * self.rs.normal(size=self.n)
             self.t += 0.1
             self.step += steps_per_sample
             times.append((i + 1) * 0.1)
             rows.append(self.values.copy())
+            if log_path and (i + 1) % log_stride == 0:
+                log.append("%d,%.4f,-1000.0,,,,,,%s\n" % (self.step, self.t, ",".join(map(str, self.values))))
         with open(dcd_path, "w") as fh:
             json.dump(np.asarray(rows).tolist(), fh)
+        if log_path:
+            names = ["metric_%d" % (i + 1) for i in range(self.n)]
+            with open(log_path, "w") as fh:
+                fh.write(",".join(COLUMNS + names) + "\n" + "".join(log))
         return np.asarray(times), np.asarray(rows)
 
 

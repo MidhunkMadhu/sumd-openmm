@@ -122,8 +122,8 @@ continued run is not bit-identical to one that never stopped.
 
 Settings that only affect cycles still to come may change:
 `max_cycles`, `max_retries_per_parent`, `on_retry_exhaustion`,
-`require_significant_slope`, `check_stride`, `check_every`,
-`keep_rejected_dcd`, `restore_check`, `platform` and precision, and the
+`require_significant_slope`, `check_stride`, `check_every`, `log_stride`,
+`energy_terms`, `keep_rejected_dcd`, `restore_check`, `platform` and precision, and the
 MPI layout (`parallel`, `mpi_mode`, `gpu_devices`) as long as the
 number of walkers stays the same. Targets given as `target_delta` are
 still measured from the original starting structure. Anything else,
@@ -306,6 +306,8 @@ See [parallel use](PARALLEL.md).
 | --- | --- | --- |
 | `output_dir` | `sumd_run` | Folder of all results |
 | `dcd_stride` | `1` | Trajectory frames kept: every Nth metric sample (must divide the samples per window) |
+| `log_stride` | `dcd_stride` | Energy log rows: every Nth metric sample (must divide the samples per window); `0` turns the logs off |
+| `energy_terms` | `no` | `yes` adds bonded, Lennard-Jones and electrostatic energies to the energy logs ([columns](OUTPUTS.md#energy-logs)) |
 | `check_stride` | `10` | `check/` gets the path so far with every Nth trajectory frame (DCD) and the AcceptedStep's State (XML); `0` turns it off |
 | `check_every` | `10` | `check/` is updated every Nth AcceptedStep, and when the run ends |
 | `keep_rejected_dcd` | `no` | `yes` keeps trajectories of rejected windows |

@@ -195,6 +195,8 @@ class SumdConfig:
     charmm_gui_format: str = "auto"
     equilibration_dir: str = "equilibration"
     dcd_stride: int = 1
+    log_stride: Optional[int] = None
+    energy_terms: bool = False
     check_stride: int = 10
     check_every: int = 10
     keep_rejected_dcd: bool = False
@@ -218,11 +220,14 @@ class SumdConfig:
         for key in ("pool_per_cell", "frontier_bands", "max_cycles", "max_retries_per_parent", "dcd_stride",
                     "check_stride", "check_every"):
             setattr(c, key, int(cfg.get(key, getattr(c, key))))
-        for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope", "write_cv_samples"):
+        for key in ("keep_rejected_dcd", "restore_check", "require_significant_slope", "write_cv_samples",
+                    "energy_terms"):
             if key in cfg:
                 setattr(c, key, _bool(cfg[key], key))
         for key in ("output_dir", "gpu_devices", "charmm_gui_dir", "equilibration_dir"):
             setattr(c, key, cfg.get(key, getattr(c, key)))
+        if cfg.get("log_stride"):
+            c.log_stride = int(cfg["log_stride"])
         if cfg.get("random_seed"):
             c.random_seed = int(cfg["random_seed"])
         c.walkers = 0 if cfg.get("walkers") == "auto" else int(cfg.get("walkers", 1))
@@ -278,6 +283,10 @@ class SumdConfig:
             raise ConfigError("band_width, pool_per_cell, dcd_stride must be positive; retries nonnegative")
         if round(n) % self.dcd_stride:
             raise ConfigError("dcd_stride must divide samples per window so DCD endpoints match saved states")
+        if self.log_stride is not None and self.log_stride < 0:
+            raise ConfigError("log_stride must be 0 (off) or positive")
+        if self.log_stride and round(n) % self.log_stride:
+            raise ConfigError("log_stride must divide samples per window so logs end at saved states")
         if self.check_stride < 0:
             raise ConfigError("check_stride must be 0 (off) or positive")
         if self.check_every <= 0:
@@ -306,6 +315,11 @@ class SumdConfig:
         """mwSuMD: every batch continues from its best walker."""
         return (self.walkers > 1 and self.seeding == "chain" and
                 (self.walker_score != "slope" or self.walker_acceptance == "always"))
+
+    @property
+    def energy_log_stride(self):
+        """Metric samples per energy log row: one row per DCD frame unless log_stride is set."""
+        return self.dcd_stride if self.log_stride is None else self.log_stride
 
     @property
     def samples_per_window(self):

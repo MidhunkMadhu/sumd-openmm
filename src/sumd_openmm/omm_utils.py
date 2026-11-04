@@ -117,6 +117,60 @@ def vfswitch(system, psf=None, inputs=None, r_on=None, r_off=None):
     return system
 
 
+ENERGY_TERMS = ("E_bond", "E_angle", "E_dihedral", "E_vdw", "E_elec_direct", "E_nonbonded",
+                "E_elec_recip", "E_nonbonded_recip", "E_other")
+
+
+def _energy_term(force, openmm):
+    """The energy log column of a force, or None if it has no energy."""
+    if isinstance(force, openmm.CMMotionRemover) or "Barostat" in type(force).__name__:
+        return None
+    if isinstance(force, openmm.HarmonicBondForce):
+        return "E_bond"
+    if isinstance(force, openmm.HarmonicAngleForce):
+        return "E_angle"
+    if isinstance(force, (openmm.PeriodicTorsionForce, openmm.RBTorsionForce,
+                          openmm.CMAPTorsionForce, openmm.CustomTorsionForce)):
+        return "E_dihedral"
+    if isinstance(force, openmm.CustomNonbondedForce):
+        return "E_vdw"
+    if isinstance(force, openmm.CustomBondForce):        # the switched 1-4 pairs of vfswitch
+        names = [force.getPerBondParameterName(i) for i in range(force.getNumPerBondParameters())]
+        return "E_vdw" if names == ["sigma", "eps"] else "E_other"
+    if isinstance(force, openmm.NonbondedForce):
+        lj = (any(force.getParticleParameters(i)[2]._value != 0 for i in range(force.getNumParticles())) or
+              any(force.getExceptionParameters(i)[4]._value != 0 for i in range(force.getNumExceptions())))
+        return "E_nonbonded" if lj else "E_elec_direct"
+    return "E_other"
+
+
+def assign_energy_groups(system):
+    """
+    Give each energy term of `system` its own force group, for energy_terms =
+    yes. Returns {log column: group} in column order. Lennard-Jones and direct
+    electrostatics share a NonbondedForce unless Lennard-Jones was moved out of
+    it (vdw = Force-switch), so without that they form one column, E_nonbonded.
+    """
+    import openmm
+
+    terms = {}
+    for force in system.getForces():
+        term = _energy_term(force, openmm)
+        if term is None:
+            continue
+        force.setForceGroup(terms.setdefault(term, len(terms) + 1))
+        if isinstance(force, openmm.NonbondedForce):
+            method = force.getNonbondedMethod()
+            if method in (force.Ewald, force.PME):
+                recip = "E_elec_recip"
+            elif method == force.LJPME:
+                recip = "E_nonbonded_recip"
+            else:
+                continue
+            force.setReciprocalSpaceForceGroup(terms.setdefault(recip, len(terms) + 1))
+    return {term: terms[term] for term in ENERGY_TERMS if term in terms}
+
+
 def rewrap(simulation):
     """
     Make every molecule whole: walk each molecule's bonds and place every

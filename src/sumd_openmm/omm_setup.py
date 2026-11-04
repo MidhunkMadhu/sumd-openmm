@@ -34,7 +34,7 @@ import os
 import re
 import sys
 
-from .omm_utils import barostat, rewrap, vfswitch
+from .omm_utils import assign_energy_groups, barostat, rewrap, vfswitch
 
 GPU_PLATFORMS = ("CUDA", "HIP", "OpenCL")
 PLATFORM_ORDER = GPU_PLATFORMS + ("CPU", "Reference")
@@ -252,7 +252,7 @@ def force_switch(prod, system, inputs):
     return vfswitch(system, None, inputs)
 
 
-def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
+def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None, energy_terms=False):
     """Build a Simulation from a serialized OpenMM System and a structure."""
     from types import SimpleNamespace
     from openmm import XmlSerializer, LangevinIntegrator, Platform
@@ -276,6 +276,7 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
     name = choose_platform(requested, available_platforms(), log, check=platform_problem)
     platform = Platform.getPlatformByName(name)
     props = platform_properties(platform, precision(cfg), device_index, log)
+    groups = assign_energy_groups(system) if energy_terms else {}
     sim = Simulation(top.topology, system, integrator, platform, props)
     kind = "structure"
     if crdfile and crdfile.lower().endswith(".xml"):
@@ -304,10 +305,11 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
         start_info=dict(kind=kind), topfile=topfile, crdfile=crdfile or topfile,
         genvel=genvel, rewrap_coordinates=False, temperature_K=temperature,
         dt_ps=dt, has_barostat=any("Barostat" in type(f).__name__
-                                   for f in system.getForces()), device_index=device_index)
+                                   for f in system.getForces()), device_index=device_index,
+        energy_groups=groups)
 
 
-def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
+def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None, energy_terms=False):
     """
     Mirror of the top-level setup in openmm_production.py.
 
@@ -316,13 +318,14 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
 
     device_index : GPU for this process (MPI runs), set as OpenMM's
                    DeviceIndex property on CUDA/OpenCL; None = OpenMM default.
+    energy_terms : give each energy term a force group, for the energy logs.
 
     Returns a SimpleNamespace with simulation, system, integrator, inputs,
     fftype, platform_name, start_info, temperature_K, dt_ps and the file
     names, for the run summary.
     """
     if cfg.get("force_field", "AMBER").upper() == "OPENMM_XML":
-        return build_xml_simulation(prod, cfg, integrator_seed, log, device_index)
+        return build_xml_simulation(prod, cfg, integrator_seed, log, device_index, energy_terms)
 
     from openmm import (LangevinIntegrator, NonbondedForce, CustomNonbondedForce,
                         Platform)
@@ -467,6 +470,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
     platform = Platform.getPlatformByName(platform_name)
     prop = platform_properties(platform, cuda_precision, device_index, log)
 
+    groups = assign_energy_groups(system) if energy_terms else {}
     simulation = Simulation(topology, system, integrator, platform, prop)
 
     # ---------------------------------------------- coordinate_file, velocity policy
@@ -498,5 +502,5 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None):
         cuda_precision=cuda_precision, start_info=start_info, topfile=topfile,
         crdfile=crdfile, genvel=genvel, rewrap_coordinates=rewrap_coordinates,
         temperature_K=float(inputs.temp), dt_ps=float(inputs.dt),
-        has_barostat=(inputs.pcouple == "yes"), device_index=device_index,
+        has_barostat=(inputs.pcouple == "yes"), device_index=device_index, energy_groups=groups,
     )

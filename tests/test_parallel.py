@@ -110,7 +110,7 @@ def run_fake(tmp_path, executor_factory, n_walkers, drift=0.02, noise=0.2, **ove
 
     scfg = make_config(walkers=n_walkers, **over)
     worker = RankWorker(FakeEngine(seed=11, drift=drift, noise=noise, n=len(scfg.metrics)), None, out,
-                        scfg.samples_per_window, 5, 1, True)
+                        scfg.samples_per_window, 5, 1, True, log_stride=scfg.energy_log_stride)
     ex = executor_factory(worker)
     log = RunLog(out, [m.name for m in scfg.metrics], scfg.write_cv_samples)
     runner = SumdRun(scfg, ex, out, np.random.default_rng(3), log,

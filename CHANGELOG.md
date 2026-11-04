@@ -5,6 +5,25 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.9.0 (2026-11-04)
+
+Added
+- Energy logs, like a GROMACS `md.log` or an Amber `mdout`: every window
+  writes `windows/.../cCCCCC_wW.log` beside its DCD, with step, time,
+  potential, kinetic and total energy, temperature, volume, density and
+  the metrics.
+- `sumd_energy.log` joins the windows of the final path, one row per
+  frame of `sumd_traj.dcd`, and adds `Cycle`, `AcceptedStep` and `Walker`.
+  `check/sumd_energy_log.csv` holds the same for a running job, and
+  `run_summary.json` gives each column's mean and standard deviation.
+- `log_stride` sets how often rows are written (default: once per DCD
+  frame; 0 turns the logs off).
+- `energy_terms = yes` adds the potential energy by term: `E_bond`,
+  `E_angle`, `E_dihedral`, `E_vdw`, `E_elec_direct` or `E_nonbonded`,
+  `E_elec_recip`, `E_other`.
+- `log_stride` and `energy_terms` may change with `--continue`, and runs
+  from earlier versions can be continued; their windows have no log.
+
 ## 0.8.0 (2026-09-29)
 
 Changed

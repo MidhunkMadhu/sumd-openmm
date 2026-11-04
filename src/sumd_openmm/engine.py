@@ -10,7 +10,12 @@ context parameters; step; Epot), so broadcasting it costs a few MB and
 restoring it costs milliseconds - much cheaper than XML round-trips.
 """
 
+import os
+
 import numpy as np
+
+from .energylog import COLUMNS
+
 
 class Snap:
     __slots__ = ("state", "step", "epot")
@@ -29,6 +34,8 @@ class Engine:
         self.ctx = omm.simulation.context
         self.log = log
         self.periodic = omm.system.usesPeriodicBoundaryConditions()
+        self.terms = getattr(omm, "energy_groups", {})
+        self.log_constants = None
 
     def molecules(self):
         return [np.array(m, dtype=int) for m in self.ctx.getMolecules()]
@@ -120,12 +127,61 @@ class Engine:
         return evaluator(pos.value_in_unit(self.u.angstrom),
                          None if box is None else box.value_in_unit(self.u.angstrom))
 
-    def run_window(self, n_samples, steps_per_sample, evaluator, dcd_path, stride):
+    def _log_constants(self):
+        """Degrees of freedom and total mass (Da) of the System."""
+        import openmm
+
+        system = self.omm.system
+        masses = [system.getParticleMass(i).value_in_unit(self.u.dalton)
+                  for i in range(system.getNumParticles())]
+        dof = 3 * sum(m > 0 for m in masses)
+        for i in range(system.getNumConstraints()):
+            a, b, _ = system.getConstraintParameters(i)
+            dof -= masses[a] > 0 or masses[b] > 0
+        if any(isinstance(f, openmm.CMMotionRemover) for f in system.getForces()):
+            dof -= 3
+        return dof, sum(masses)
+
+    def energy_row(self, metrics):
+        """One line of a window's energy log, for the Context as it stands."""
+        u = self.u
+        kj = u.kilojoule_per_mole
+
+        if self.log_constants is None:
+            self.log_constants = self._log_constants()
+        dof, mass = self.log_constants
+
+        st = self.ctx.getState(getEnergy=True)
+        epot = st.getPotentialEnergy().value_in_unit(kj)
+        ekin = st.getKineticEnergy().value_in_unit(kj)
+        integrator = self.omm.simulation.integrator
+        if hasattr(integrator, "computeSystemTemperature"):
+            temperature = integrator.computeSystemTemperature().value_in_unit(u.kelvin)
+        else:
+            temperature = 2 * ekin / (dof * u.MOLAR_GAS_CONSTANT_R.value_in_unit(kj / u.kelvin))
+
+        volume = density = ""
+        if self.periodic:
+            nm3 = st.getPeriodicBoxVolume().value_in_unit(u.nanometer ** 3)
+            volume, density = "%.5f" % nm3, "%.5f" % (mass * 1.66053906660e-3 / nm3)
+
+        fields = ["%d" % self.sim.currentStep,
+                  "%.4f" % st.getTime().value_in_unit(u.picosecond),
+                  "%.4f" % epot, "%.4f" % ekin, "%.4f" % (epot + ekin), "%.3f" % temperature,
+                  volume, density]
+        fields += ["%.4f" % self.ctx.getState(getEnergy=True, groups={group})
+                   .getPotentialEnergy().value_in_unit(kj) for group in self.terms.values()]
+        fields += ["%.4f" % value for value in metrics]
+        return ",".join(fields) + "\n"
+
+    def run_window(self, n_samples, steps_per_sample, evaluator, dcd_path, stride,
+                   log_path=None, log_stride=0):
         """
         Run one window. Samples CVs every `steps_per_sample` steps (the first
         sample is at t = delta, the last at t = tau, as in an Amber trajectory
         without frame 0) and writes every `stride`-th sample to its own DCD.
         Frames are wrapped per molecule, as in the production DCDReporter.
+        With log_path, every `log_stride`-th sample adds a row to that energy log.
         """
         from openmm.app import DCDFile
 
@@ -133,7 +189,9 @@ class Engine:
         t0 = self.ctx.getState().getTime().value_in_unit(u.picosecond)
         t, values = [], []
 
-        with open(dcd_path, "wb") as fh:
+        with open(dcd_path, "wb") as fh, open(log_path or os.devnull, "w") as log:
+            if log_path:
+                log.write(",".join(COLUMNS + list(self.terms) + list(evaluator.names)) + "\n")
             dcd = DCDFile(fh, self.sim.topology, self.omm.dt_ps * u.picoseconds,
                           firstStep=self.sim.currentStep + steps_per_sample * stride,
                           interval=steps_per_sample * stride)
@@ -149,5 +207,7 @@ class Engine:
 
                 if k % stride == 0:
                     dcd.writeModel(pos, periodicBoxVectors=box)
+                if log_path and k % log_stride == 0:
+                    log.write(self.energy_row(row))
 
         return np.asarray(t), np.asarray(values)
