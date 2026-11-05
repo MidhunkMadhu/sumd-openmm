@@ -1,7 +1,9 @@
 """Resolve selections once against the simulation topology."""
 
+import contextlib
 import os
 import re
+import sys
 
 import numpy as np
 
@@ -12,7 +14,59 @@ class SelectionError(ValueError):
 
 def load_structure(path, xyz=None):
     import parmed
-    return parmed.load_file(path, xyz=xyz) if xyz is not None else parmed.load_file(path)
+    kwargs = {"xyz": xyz} if xyz is not None else {}
+    try:
+        return parmed.load_file(path, **kwargs)
+    except Exception as exc:
+        if "vsite" not in str(exc):
+            raise
+        # parmed supports only 3-point virtual sites of function type 1, and raises
+        # "Only 3-point vsite type 1 is supported" on anything else. CGenFF writes a
+        # halogen lone pair as a type-3 site, so every topology with a brominated
+        # ligand is unreadable here - even though the simulation itself is fine, because
+        # the MD path uses OpenMM's own GromacsTopFile (omm_setup), not parmed.
+        #
+        # parmed is used for ONE thing: turning selection expressions into atom indices.
+        # That needs atom names, residue names and connectivity - not vsite geometry.
+        # So retry with the vsite parser returning what it returns for a supported
+        # site: a bond from the site to its parent atom. The bond length is 0, which is
+        # never read; the bond itself matters, because _molecule_ids() groups atoms into
+        # molecules by connectivity and an unbonded site would become its own molecule.
+        with _vsites3_as_plain_bond():
+            struct = parmed.load_file(path, **kwargs)
+        sys.stderr.write(
+            "[selection] %s contains a virtual site parmed cannot parse (%s); read it "
+            "with that site treated as a bond to its parent atom. Selections are "
+            "unaffected - only vsite geometry was skipped, and the simulation reads this "
+            "topology through OpenMM, not parmed.\n" % (path, exc))
+        return struct
+
+
+@contextlib.contextmanager
+def _vsites3_as_plain_bond():
+    """Make parmed tolerate 3-point virtual sites of a function type it cannot build."""
+    import parmed.unit as u
+    from parmed.exceptions import GromacsError
+    from parmed.gromacs.gromacstop import GromacsTopologyFile
+    from parmed.topologyobjects import Bond, BondType
+
+    original = GromacsTopologyFile._parse_vsites3
+
+    def fallback(self, line, all_atoms, params):
+        try:
+            return original(self, line, all_atoms, params)
+        except GromacsError:
+            words = line.split()
+            site = all_atoms[int(words[0]) - 1]
+            parent = all_atoms[int(words[1]) - 1]
+            bond_type = BondType(0, 0.0 * u.angstroms)
+            return Bond(site, parent, bond_type), bond_type
+
+    GromacsTopologyFile._parse_vsites3 = fallback
+    try:
+        yield
+    finally:
+        GromacsTopologyFile._parse_vsites3 = original
 
 
 def describe(struct, idx):
