@@ -3,7 +3,6 @@
 import contextlib
 import os
 import re
-import sys
 
 import numpy as np
 
@@ -12,53 +11,54 @@ class SelectionError(ValueError):
     pass
 
 
-def load_structure(path, xyz=None):
+def load_structure(path, log=print):
+    """
+    Read a structure for selections. A GROMACS virtual site whose geometry parmed
+    cannot work out is read as a bond to its parent atom: selections need atom
+    names, residue names and connectivity, and the simulation itself reads the
+    topology through OpenMM.
+    """
     import parmed
-    kwargs = {"xyz": xyz} if xyz is not None else {}
-    try:
-        return parmed.load_file(path, **kwargs)
-    except Exception as exc:
-        if "vsite" not in str(exc):
-            raise
-        # parmed supports only 3-point virtual sites of function type 1, and raises
-        # "Only 3-point vsite type 1 is supported" on anything else. CGenFF writes a
-        # halogen lone pair as a type-3 site, so every topology with a brominated
-        # ligand is unreadable here - even though the simulation itself is fine, because
-        # the MD path uses OpenMM's own GromacsTopFile (omm_setup), not parmed.
-        #
-        # parmed is used for ONE thing: turning selection expressions into atom indices.
-        # That needs atom names, residue names and connectivity - not vsite geometry.
-        # So retry with the vsite parser returning what it returns for a supported
-        # site: a bond from the site to its parent atom. The bond length is 0, which is
-        # never read; the bond itself matters, because _molecule_ids() groups atoms into
-        # molecules by connectivity and an unbonded site would become its own molecule.
-        with _vsites3_as_plain_bond():
-            struct = parmed.load_file(path, **kwargs)
-        sys.stderr.write(
-            "[selection] %s contains a virtual site parmed cannot parse (%s); read it "
-            "with that site treated as a bond to its parent atom. Selections are "
-            "unaffected - only vsite geometry was skipped, and the simulation reads this "
-            "topology through OpenMM, not parmed.\n" % (path, exc))
-        return struct
+
+    skipped = []
+    with _lenient_vsites3(skipped):
+        struct = parmed.load_file(path)
+    if skipped:
+        log("WARNING: %s: %d virtual site definition(s) read as bonds to their parent atoms, as parmed "
+            "cannot build them (%s). Each site is still an atom of its residue, so a mask "
+            "such as :LIG&!@H= selects it; add &!@LP1 to leave a lone pair out."
+            % (path, len(skipped), skipped[0]))
+    return struct
 
 
 @contextlib.contextmanager
-def _vsites3_as_plain_bond():
-    """Make parmed tolerate 3-point virtual sites of a function type it cannot build."""
+def _lenient_vsites3(skipped):
+    """
+    While active, a [ virtual_sites3 ] line parmed has no geometry for becomes what
+    parmed returns for a site it supports: a bond from the site to its parent atom.
+    The reasons are added to `skipped`. A site already bonded to its parent is an
+    error in the topology and stays one.
+    """
     import parmed.unit as u
     from parmed.exceptions import GromacsError
     from parmed.gromacs.gromacstop import GromacsTopologyFile
     from parmed.topologyobjects import Bond, BondType
 
-    original = GromacsTopologyFile._parse_vsites3
+    original = getattr(GromacsTopologyFile, "_parse_vsites3", None)
+    if original is None:
+        yield
+        return
 
     def fallback(self, line, all_atoms, params):
         try:
             return original(self, line, all_atoms, params)
-        except GromacsError:
+        except (GromacsError, KeyError, ValueError) as exc:
             words = line.split()
             site = all_atoms[int(words[0]) - 1]
             parent = all_atoms[int(words[1]) - 1]
+            if site in parent.bond_partners:
+                raise
+            skipped.append(str(exc))
             bond_type = BondType(0, 0.0 * u.angstroms)
             return Bond(site, parent, bond_type), bond_type
 
@@ -67,6 +67,50 @@ def _vsites3_as_plain_bond():
         yield
     finally:
         GromacsTopologyFile._parse_vsites3 = original
+
+
+def virtual_site_links(path):
+    """
+    (site, parent) atom indices of every virtual site of a GROMACS topology. parmed
+    drops [ virtual_sites2 ], [ virtual_sites4 ] and [ virtual_sitesn ], which would
+    leave those sites as molecules of their own.
+    """
+    from collections import OrderedDict
+    from contextlib import closing
+
+    import parmed.gromacs as gmx
+    from parmed.gromacs.gromacstop import GromacsFile
+
+    atoms, sites, order = {}, {}, []
+    section = molecule = None
+    with closing(GromacsFile(path, includes=[gmx.GROMACS_TOPDIR],
+                             defines=OrderedDict(FLEXIBLE=1))) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if line[0] == "[":
+                section = line[1:-1].strip()
+                continue
+            words = line.split()
+            if section == "moleculetype":
+                molecule = words[0]
+                atoms[molecule], sites[molecule] = 0, []
+            elif section == "atoms":
+                atoms[molecule] += 1
+            elif section == "molecules":
+                order.append((words[0], int(words[1])))
+            elif re.fullmatch(r"(virtual_sites|dummies)(\d|n)", section or ""):
+                # sitesn lists its function type before the atoms that build the site
+                first = 2 if section.endswith("n") else 1
+                sites[molecule].append((int(words[0]) - 1, int(words[first]) - 1))
+
+    links, offset = [], 0
+    for name, copies in order:
+        for _ in range(copies):
+            links += [(offset + site, offset + parent) for site, parent in sites[name]]
+            offset += atoms[name]
+    return links
 
 
 def describe(struct, idx):
@@ -135,7 +179,8 @@ def _paired(top, ref, a, b, label):
                                  (label, top.atoms[i].name, ref.atoms[j].name))
 
 
-def _molecule_ids(struct):
+def _molecule_ids(struct, links=()):
+    """A molecule label per atom, from the bonds and the extra (a, b) atom links."""
     parent = list(range(len(struct.atoms)))
 
     def find(i):
@@ -144,17 +189,21 @@ def _molecule_ids(struct):
             i = parent[i]
         return i
 
-    for bond in struct.bonds:
-        a, b = find(bond.atom1.idx), find(bond.atom2.idx)
+    pairs = [(bond.atom1.idx, bond.atom2.idx) for bond in struct.bonds]
+    for i, j in pairs + list(links):
+        a, b = find(i), find(j)
         parent[b] = a
     return [find(i) for i in range(len(parent))]
 
 
-def resolve(config, topology_file, base_dir="."):
+def resolve(config, topology_file, base_dir=".", log=print):
+    from parmed.gromacs import GromacsTopologyFile
+
     from .metrics import Metric, Evaluator
 
-    top = load_structure(topology_file)
-    molecule_ids = _molecule_ids(top)
+    top = load_structure(topology_file, log)
+    links = virtual_site_links(topology_file) if isinstance(top, GromacsTopologyFile) else ()
+    molecule_ids = _molecule_ids(top, links)
     compiled, reports = [], []
     for spec in config.metrics:
         groups, components, report = {}, {}, dict(number=spec.number, name=spec.name, type=spec.type,
@@ -186,7 +235,7 @@ def resolve(config, topology_file, base_dir="."):
                     atoms=[top.atoms[int(i)].name for i in idx[:10]])
         reference = {}
         if spec.type in ("rmsd", "rmsd_displacement"):
-            ref = load_structure(os.path.join(base_dir, spec.reference))
+            ref = load_structure(os.path.join(base_dir, spec.reference), log)
             ref_a, _ = resolve_one(ref, spec.reference_a or spec.a, config.selection_syntax,
                                     spec.name + ".reference_a", base_dir)
             _paired(top, ref, groups["a"], ref_a, spec.name + ".a")

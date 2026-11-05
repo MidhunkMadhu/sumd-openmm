@@ -120,8 +120,9 @@ class RunLog:
 
 
 class SumdRun:
-    def __init__(self, config, executor, outdir, rng, log, initial):
+    def __init__(self, config, executor, outdir, rng, log, initial, log_meta=None):
         self.s, self.x, self.out = config, executor, outdir
+        self.log_meta = log_meta
         self.rng, self.log = rng, log
         self.names = [m.name for m in config.metrics]
         self.supervised = [m for m in config.metrics if m.role == "supervise"]
@@ -197,13 +198,13 @@ class SumdRun:
         relative = os.path.join("windows", "accepted", "c%05d_w%d.dcd" % (cycle, walker))
         target = os.path.join(self.out, relative)
         shutil.move(path, target)
-        if os.path.exists(energylog.log_path(path)):
-            shutil.move(energylog.log_path(path), energylog.log_path(target))
+        for item in energylog.window_files(path):
+            shutil.move(item, os.path.splitext(target)[0] + os.path.splitext(item)[1])
         return relative
 
     def path_logs(self, nid):
-        """The energy log of every window on the path to AcceptedStep `nid`, for join_logs."""
-        return [(energylog.log_path(os.path.join(self.out, self.nodes[i]["dcd"])),
+        """The energy CSV of every window on the path to AcceptedStep `nid`, for join_logs."""
+        return [(energylog.data_path(os.path.join(self.out, self.nodes[i]["dcd"])),
                  self.nodes[i]["cycle"], i, self.nodes[i]["walker"])
                 for i in self.path_to(nid) if self.nodes[i]["dcd"]]
 
@@ -221,13 +222,16 @@ class SumdRun:
                 if self.nodes[i]["dcd"]]
         traj = os.path.join(folder, "sumd_traj_stride%d.dcd" % self.s.check_stride)
         state = os.path.join(folder, "latest_accepted_step.xml")
-        energy = os.path.join(folder, energylog.CHECK_LOG)
+        energy = os.path.join(folder, energylog.CHECK_DATA)
+        report = os.path.join(folder, energylog.FINAL_LOG)
         try:
             os.makedirs(folder, exist_ok=True)
             frames = dcdtools.concat_dcds(dcds, traj + ".tmp", self.s.check_stride)
             shutil.copyfile(os.path.join(self.out, node["state_xml"]), state + ".tmp")
             if energylog.join_logs(self.path_logs(nid), energy + ".tmp"):
+                energylog.render(energy + ".tmp", report + ".tmp", self.log_meta)
                 os.replace(energy + ".tmp", energy)
+                os.replace(report + ".tmp", report)
             os.replace(traj + ".tmp", traj)
             os.replace(state + ".tmp", state)
             _write_json(os.path.join(folder, "latest.json"),
@@ -243,7 +247,7 @@ class SumdRun:
     def drop_dcd(self, path):
         if not path:
             return
-        for item in (path, energylog.log_path(path)):
+        for item in [path] + energylog.window_files(path):
             if not os.path.exists(item):
                 continue
             if self.s.keep_rejected_dcd:
@@ -903,7 +907,7 @@ def run(args, scfg, comm=None):
         check_continue_md(resume, cfg)
     topfile = prod.get_str(cfg, "topology_file", required=True)
     base = os.path.dirname(os.path.abspath(args.input_file))
-    evaluator, report = selection.resolve(scfg, topfile, base)
+    evaluator, report = selection.resolve(scfg, topfile, base, log=log)
     omm = build_simulation(prod, cfg, seeds[rank], log=log, device_index=my_device,
                            energy_terms=scfg.energy_terms and scfg.energy_log_stride > 0)
     if root and equilibrated and equilibrated["format"] == "AMBER" and not args.dry_run:
@@ -929,9 +933,15 @@ def run(args, scfg, comm=None):
     sps = scfg.cv_sample_ps / omm.dt_ps
     if abs(sps - round(sps)) > 1e-6:
         raise ConfigError("cv_sample_ps must be a multiple of dt")
+    with open(args.input_file) as fh:
+        log_meta = dict(version=__version__, input=fh.read(), platform=omm.platform_name,
+                        host=socket.gethostname(), topology=topfile, coordinates=omm.crdfile,
+                        dt_ps=omm.dt_ps, temperature_K=omm.temperature_K,
+                        ntpr=int(round(sps)) * scfg.energy_log_stride)
     worker = RankWorker(engine, evaluator, outdir, scfg.samples_per_window, int(round(sps)),
                         scfg.dcd_stride, scfg.restore_check, rank=rank,
-                        host=socket.gethostname(), device=my_device, log_stride=scfg.energy_log_stride)
+                        host=socket.gethostname(), device=my_device, log_stride=scfg.energy_log_stride,
+                        log_meta=log_meta)
     if not root:
         if not args.dry_run:
             worker_loop(comm, worker)
@@ -960,7 +970,7 @@ def run(args, scfg, comm=None):
         return
     _write_json(summary_path, summary)
     executor = MPIExecutor(comm, worker) if comm is not None else LocalExecutor(worker)
-    runner = SumdRun(scfg, executor, outdir, rng, log, initial)
+    runner = SumdRun(scfg, executor, outdir, rng, log, initial, log_meta)
     runner.saved_config = dict(sumd_config=scfg.as_dict(), md_config=cfg)
     if resume:
         runner.load_state(resume)
@@ -1019,7 +1029,7 @@ def _early_stop_reason(exc):
 
 def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summary_path, log,
             partial=False):
-    """sumd_traj.dcd, sumd_energy.log, final_state.xml/.rst7, final_path.txt and run_summary.json for `final`."""
+    """sumd_traj.dcd, sumd_energy.log/.csv, final_state.xml/.rst7, final_path.txt and run_summary.json for `final`."""
     path = runner.path_to(final)
     dcds = [runner.nodes[i]["dcd"] for i in path if runner.nodes[i]["dcd"]]
     with open(os.path.join(outdir, "final_path.txt"), "w") as fh:
@@ -1032,10 +1042,12 @@ def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summ
               os.path.join(outdir, "sumd_traj.dcd")) if dcds else 0)
     energy = None
     try:
-        energy_path = os.path.join(outdir, energylog.FINAL_LOG)
-        rows = energylog.join_logs(runner.path_logs(final), energy_path)
+        energy_data = os.path.join(outdir, energylog.FINAL_DATA)
+        rows = energylog.join_logs(runner.path_logs(final), energy_data)
         if rows:
-            energy = dict(file=energylog.FINAL_LOG, rows=rows, columns=energylog.summarise(energy_path))
+            energylog.render(energy_data, os.path.join(outdir, energylog.FINAL_LOG), runner.log_meta)
+            energy = dict(file=energylog.FINAL_LOG, data=energylog.FINAL_DATA, rows=rows,
+                          columns=energylog.summarise(energy_data))
     except (OSError, ValueError) as exc:
         log("WARNING: %s not written: %s" % (energylog.FINAL_LOG, exc))
     last = runner.nodes[final]

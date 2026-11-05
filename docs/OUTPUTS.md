@@ -13,12 +13,13 @@ simulation of one walker, kept or not.
 | `cv_samples.csv` | Every metric sample of every window (`write_cv_samples = no` omits it) |
 | `windows.jsonl` | Full record of every window, one JSON object per line |
 | `accepted_steps/accepted_step_NNNNNN.xml` | OpenMM State (coordinates, velocities, box) of each AcceptedStep; a restart point |
-| `windows/accepted/cCCCCC_wW.dcd`, `.log` | Trajectory and energy log of each kept window (cycle C, walker W) |
+| `windows/accepted/cCCCCC_wW.dcd`, `.log`, `.csv` | Trajectory, energy log and energy table of each kept window (cycle C, walker W) |
 | `windows/rejected/` | Trajectories and energy logs of other windows, with `keep_rejected_dcd = yes` |
 | `sumd_traj.dcd` | The kept windows of the final path, joined in order |
-| `sumd_energy.log` | Energy log of the final path, joined in the same order |
+| `sumd_energy.log` | Energy log of the final path, in the layout of an Amber `mdout` |
+| `sumd_energy.csv` | The same numbers as a table, one row per record, for plotting |
 | `check/sumd_traj_strideN.dcd` | Updated every 10th AcceptedStep (`check_every`) and at the end: the path to it, every Nth frame (`check_stride`, default 10) |
-| `check/sumd_energy_log.csv` | Energy log of that path, every row |
+| `check/sumd_energy.log`, `check/sumd_energy_log.csv` | Energy log and table of that path, every row |
 | `check/latest_accepted_step.xml` | That AcceptedStep's OpenMM State |
 | `check/latest.json` | Which AcceptedStep `check/` holds, its path, frame count and metric values |
 | `final_path.txt` | AcceptedSteps of the final path, with their metric values and trajectories |
@@ -87,27 +88,81 @@ batch returns, so when windows are long ask Slurm for an early warning with
 
 ## Energy logs
 
-Each window writes a CSV energy log, the counterpart of a GROMACS
-`md.log` or an Amber `mdout`, next to its DCD. A row is written every
-`log_stride`-th metric sample, by default once per DCD frame, so row N of
-`sumd_energy.log` is frame N of `sumd_traj.dcd`, and the last row of a
-window is the saved State of its AcceptedStep. `sumd_energy.log` holds
-only the windows of the final path, in order: a kept window that a
-`step_back` abandoned is left out, as it is from the trajectory.
-`run_summary.json` gives the mean and standard deviation of each column
-under `energy_log`.
+Each window writes an energy log (`.log`) and an energy table (`.csv`) next
+to its DCD. A record is written every `log_stride`-th metric sample, by
+default once per DCD frame, so record N of `sumd_energy.log` is frame N of
+`sumd_traj.dcd`, and the last record of a window is the saved State of its
+AcceptedStep. `sumd_energy.log` and `sumd_energy.csv` hold only the windows
+of the final path, in order: a kept window that a `step_back` abandoned is
+left out, as it is from the trajectory. `run_summary.json` gives the mean
+and standard deviation of each column under `energy_log`.
+
+### The log
+
+The `.log` files follow an Amber `mdout`: the input file, then numbered
+sections for resources, control data, coordinates, results and timings.
+Section 4 repeats one labelled block per record, and a `|` line marks the
+start of each window:
+
+```
+| Cycle 1  AcceptedStep 1  Walker 0
+
+ NSTEP =       20   TIME(PS) =       0.040  TEMP(K) =   318.06  PRESS =   126.3
+ Etot   =   -100204.2147  EKtot   =     45747.3876  EPtot      =   -145951.6023
+ BOND   =      6952.7023  ANGLE   =     11184.3705  DIHED      =     11172.0939
+ EELEC  =   -182144.6675  VDWAALS =      6883.8985
+                                                    VOLUME     =    656687.0800
+                                                    Density    =         1.0224
+| ligand_rmsd                     32.2735
+ ------------------------------------------------------------------------------
+```
+
+After the records come `A V E R A G E S` and `R M S  F L U C T U A T I O N S`
+blocks of the same layout, over all the records, and section 5 gives the
+wall time and ns/day of the windows in the log.
+
+The units are Amber's: kcal/mol, Angstrom^3, g/mL and bar.
+
+| Name | Contents |
+| --- | --- |
+| `NSTEP`, `TIME(PS)` | MD step and simulation time, continuous along the path |
+| `TEMP(K)` | Instantaneous temperature, as in OpenMM's `StateDataReporter` |
+| `PRESS` | Instantaneous pressure from the barostat; 0.0 without one, as in Amber |
+| `Etot`, `EKtot`, `EPtot` | Total, kinetic and potential energy |
+| `BOND`, `ANGLE`, `DIHED` | Bonded terms |
+| `EELEC` | Electrostatics, real and reciprocal space, including 1-4 pairs |
+| `VDWAALS` | Lennard-Jones, including 1-4 pairs |
+| `NONBND` | Real-space electrostatics and Lennard-Jones, when OpenMM holds them in one force |
+| `RECIP` | Reciprocal space, when it is not part of `EELEC` |
+| `OTHER` | Any other force |
+| `VOLUME`, `Density` | Box volume and density; left out without periodic boundaries |
+| `\|` lines | The value of each metric at that record, in its own units |
+
+The energy terms add up to `EPtot`, and a term the system lacks is left
+out. OpenMM has no counterpart of `EKCMT`, `VIRIAL` or the separate 1-4
+terms, so they do not appear. AmberTools' `mdout_analyzer.py` reads every
+value. `process_mdout.perl` reads temperature, pressure and the three energy
+totals and leaves volume and density blank, as it expects `EKCMT` before
+them; take those from the `.csv`.
+
+### The table
+
+The `.csv` files hold the same numbers in OpenMM's units.
 
 | Column | Contents |
 | --- | --- |
 | `Step`, `Time_ps` | MD step and simulation time, continuous along the path |
-| `Cycle`, `AcceptedStep`, `Walker` | The window the row belongs to (joined logs only) |
+| `Cycle`, `AcceptedStep`, `Walker` | The window the row belongs to (joined tables only) |
 | `Epot_kJmol`, `Ekin_kJmol`, `Etot_kJmol` | Potential, kinetic and total energy |
-| `Temp_K` | Instantaneous temperature, as in OpenMM's `StateDataReporter` |
+| `Temp_K` | Instantaneous temperature |
+| `Pressure_bar` | Instantaneous pressure; empty without a barostat |
 | `Volume_nm3`, `Density_gmL` | Box volume and density; empty without periodic boundaries |
+| `Wall_s` | Seconds since the window started |
+| one column per energy term | See below; absent with `energy_terms = no` |
 | one column per metric | Metric value at that sample, as in `cv_samples.csv` |
 
-`energy_terms = yes` adds the potential energy by term, after
-`Density_gmL`. The terms add up to `Epot_kJmol`.
+The potential energy by term follows `Wall_s`. The terms add up to
+`Epot_kJmol`.
 
 | Column | Contents |
 | --- | --- |
@@ -122,7 +177,7 @@ under `energy_log`.
 | `E_other` | Any other force |
 
 A column appears only if the system has that term. Each row costs extra
-energy evaluations, one for the totals and one per term, so a small
+energy evaluations, for the totals, for each term and for the pressure, so a small
 `log_stride` slows a run; `log_stride = 0` turns the logs off.
 
 ## check/

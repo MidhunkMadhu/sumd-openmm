@@ -35,14 +35,14 @@ from collections import OrderedDict
 
 import numpy as np
 
-from .energylog import log_path
+from .energylog import data_path, log_path, render
 from .parallel import walker_ranks
 
 
 class RankWorker:
 
     def __init__(self, engine, evaluator, outdir, samples, steps_per_sample, stride,
-                 restore_check, rank=0, host=None, device=None, cache_size=8, log_stride=0):
+                 restore_check, rank=0, host=None, device=None, cache_size=8, log_stride=0, log_meta=None):
         self.eng = engine
         self.ev = evaluator
         self.out = outdir
@@ -50,6 +50,7 @@ class RankWorker:
         self.sps = steps_per_sample
         self.stride = stride
         self.log_stride = log_stride
+        self.log_meta = log_meta
         self.check = restore_check
         self.rank = rank
         self.host = host or socket.gethostname()
@@ -123,8 +124,10 @@ class RankWorker:
             tmp = os.path.join(self.out, "windows", "tmp", "c%05d_w%d.dcd" % (cycle, w))
             wall0 = time.time()
             t, values = self.eng.run_window(self.samples, self.sps, self.ev, tmp, self.stride,
-                                                log_path(tmp) if self.log_stride else None, self.log_stride)
+                                                data_path(tmp) if self.log_stride else None, self.log_stride)
             wall = time.time() - wall0
+            if self.log_stride:
+                render(data_path(tmp), log_path(tmp), self.log_meta, dict(Cycle=cycle, Walker=w))
 
             snap = self.eng.snapshot()
             self.pending[key] = snap

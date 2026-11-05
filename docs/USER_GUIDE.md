@@ -307,7 +307,7 @@ See [parallel use](PARALLEL.md).
 | `output_dir` | `sumd_run` | Folder of all results |
 | `dcd_stride` | `1` | Trajectory frames kept: every Nth metric sample (must divide the samples per window) |
 | `log_stride` | `dcd_stride` | Energy log rows: every Nth metric sample (must divide the samples per window); `0` turns the logs off |
-| `energy_terms` | `no` | `yes` adds bonded, Lennard-Jones and electrostatic energies to the energy logs ([columns](OUTPUTS.md#energy-logs)) |
+| `energy_terms` | `yes` | Bonded, Lennard-Jones and electrostatic energies in the energy logs ([contents](OUTPUTS.md#energy-logs)); `no` leaves them out and costs less |
 | `check_stride` | `10` | `check/` gets the path so far with every Nth trajectory frame (DCD) and the AcceptedStep's State (XML); `0` turns it off |
 | `check_every` | `10` | `check/` is updated every Nth AcceptedStep, and when the run ends |
 | `keep_rejected_dcd` | `no` | `yes` keeps trajectories of rejected windows |

@@ -28,6 +28,8 @@ from collections import deque
 
 import numpy as np
 
+from .energylog import ENERGY_TERMS
+
 __all__ = ["barostat", "vfswitch", "rewrap", "read_top", "read_crd", "read_params", "gen_box"]
 
 _SWITCH = ("step(r_off - r)*select(step(r - r_on),"
@@ -115,10 +117,6 @@ def vfswitch(system, psf=None, inputs=None, r_on=None, r_off=None):
     pairs.setForceGroup(nonbonded.getForceGroup())
     system.addForce(pairs)
     return system
-
-
-ENERGY_TERMS = ("E_bond", "E_angle", "E_dihedral", "E_vdw", "E_elec_direct", "E_nonbonded",
-                "E_elec_recip", "E_nonbonded_recip", "E_other")
 
 
 def _energy_term(force, openmm):

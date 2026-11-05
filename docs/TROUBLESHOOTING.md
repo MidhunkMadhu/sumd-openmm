@@ -219,24 +219,59 @@ one column per metric under its name ([outputs](OUTPUTS.md)).
 window, or `log_stride = 0`. Check `accepted_steps.csv` for AcceptedSteps
 past 0.
 
-**`sumd_energy.log` starts later than `sumd_traj.dcd`, or a column is
-empty in its first rows.** The run was continued with `--continue`, and
-its earlier windows were written without a log (a version before 0.9.0)
-or with other settings. Windows without a log are left out, so row N no
-longer matches frame N; windows without `energy_terms` leave those columns
-empty. Start a new run for a log that covers the whole path.
+**`sumd_energy.log` starts later than `sumd_traj.dcd`, or a term is
+missing from its first records.** The run was continued with `--continue`,
+and its earlier windows were written without a log (a version before 0.9.0)
+or with other settings. Windows without a log are left out, so record N no
+longer matches frame N; windows without `energy_terms` lack those terms,
+and windows of version 0.9.0 show `PRESS = 0.0`. Start a new run for a log
+that covers the whole path.
 
-**`Temp_K` or `Ekin_kJmol` jumps between two windows in `sumd_energy.log`.**
+**`TEMP(K)` or `EKtot` jumps between two windows in `sumd_energy.log`.**
 A window that starts with reassigned velocities begins from a fresh
-Maxwell-Boltzmann draw. The `Cycle` column shows where windows meet.
+Maxwell-Boltzmann draw. The `| Cycle` lines show where windows meet.
 
-**No `E_vdw` column with `energy_terms = yes`.** Lennard-Jones and
-real-space electrostatics share one OpenMM force unless `vdw =
-Force-switch` separates them, so they appear together as `E_nonbonded`.
+**Energies in `sumd_energy.log` differ from `sumd_energy.csv` or
+`accepted_steps.csv`.** The log is in kcal/mol, as in Amber, and the tables
+in kJ/mol. Divide the table by 4.184.
 
-**A run is slower with energy logs.** Each row needs an energy evaluation,
-and `energy_terms = yes` adds one per term. With `dcd_stride = 1` and a
-short `cv_sample_ps` that is frequent; set a larger `log_stride`.
+**`PRESS = 0.0` in every record.** The run has no barostat (`pcouple =
+no`), and Amber prints the same. Without periodic boundaries `VOLUME` and
+`Density` are left out as well.
+
+**`VOLUME` does not change over a short run with a barostat.** Monte
+Carlo moves are tried every `p_freq` steps and start large, so in a big box
+most are rejected until the step size adapts.
+
+**`summary.DENSITY` or `summary.VOLUME` from `process_mdout.perl` is
+blank.** The script expects an `EKCMT` line, which OpenMM cannot provide.
+Use `mdout_analyzer.py` or `sumd_energy.csv`.
+
+**No `VDWAALS` or `EELEC` in the log, only `NONBND` and `RECIP`.**
+Lennard-Jones and real-space electrostatics share one OpenMM force unless
+`vdw = Force-switch` separates them, so they appear together as `NONBND`
+(`E_nonbonded` in the table).
+
+**A run is slower with energy logs.** Each record needs an energy
+evaluation, one more per energy term, and more for the pressure with a
+barostat. With `dcd_stride = 1` and a short `cv_sample_ps` that is
+frequent; set a larger `log_stride`, or `energy_terms = no`.
+
+**`WARNING: ... virtual site definition(s) read as bonds to their parent
+atoms`.** parmed, which reads the topology for selections, cannot build
+some virtual sites, such as the type-3 lone pair CGenFF writes for a
+halogen. Selections still work and the simulation is not affected, since
+OpenMM reads the topology itself. The site remains an atom of its residue.
+
+**A ligand selection has one atom more than expected, or `topology atoms
+but reference atoms` differ by one.** A heavy-atom mask such as
+`:LIG&!@H=` also selects a lone pair site, which is not named like a
+hydrogen and counts as a full atom in a metric. Add `&!@LP1`, using the
+site's name, to leave it out.
+
+**`Unexpected bond b/w vsite and its parent`.** The topology lists a bond
+between a virtual site and its parent atom. Remove that bond from
+`[ bonds ]`.
 
 ## Reporting a problem
 

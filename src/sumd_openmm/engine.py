@@ -11,6 +11,7 @@ restoring it costs milliseconds - much cheaper than XML round-trips.
 """
 
 import os
+import time
 
 import numpy as np
 
@@ -36,6 +37,8 @@ class Engine:
         self.periodic = omm.system.usesPeriodicBoundaryConditions()
         self.terms = getattr(omm, "energy_groups", {})
         self.log_constants = None
+        self.barostat = next((force for force in omm.system.getForces()
+                              if hasattr(force, "computeCurrentPressure")), None)
 
     def molecules(self):
         return [np.array(m, dtype=int) for m in self.ctx.getMolecules()]
@@ -142,7 +145,7 @@ class Engine:
             dof -= 3
         return dof, sum(masses)
 
-    def energy_row(self, metrics):
+    def energy_row(self, metrics, wall=0.0):
         """One line of a window's energy log, for the Context as it stands."""
         u = self.u
         kj = u.kilojoule_per_mole
@@ -160,6 +163,11 @@ class Engine:
         else:
             temperature = 2 * ekin / (dof * u.MOLAR_GAS_CONSTANT_R.value_in_unit(kj / u.kelvin))
 
+        pressure = ""
+        if self.barostat is not None:
+            bar = self.barostat.computeCurrentPressure(self.ctx)
+            pressure = "%.3f" % (bar.value_in_unit(u.bar) if u.is_quantity(bar) else bar)
+
         volume = density = ""
         if self.periodic:
             nm3 = st.getPeriodicBoxVolume().value_in_unit(u.nanometer ** 3)
@@ -168,7 +176,7 @@ class Engine:
         fields = ["%d" % self.sim.currentStep,
                   "%.4f" % st.getTime().value_in_unit(u.picosecond),
                   "%.4f" % epot, "%.4f" % ekin, "%.4f" % (epot + ekin), "%.3f" % temperature,
-                  volume, density]
+                  pressure, volume, density, "%.3f" % wall]
         fields += ["%.4f" % self.ctx.getState(getEnergy=True, groups={group})
                    .getPotentialEnergy().value_in_unit(kj) for group in self.terms.values()]
         fields += ["%.4f" % value for value in metrics]
@@ -181,13 +189,14 @@ class Engine:
         sample is at t = delta, the last at t = tau, as in an Amber trajectory
         without frame 0) and writes every `stride`-th sample to its own DCD.
         Frames are wrapped per molecule, as in the production DCDReporter.
-        With log_path, every `log_stride`-th sample adds a row to that energy log.
+        With log_path, every `log_stride`-th sample adds a row to that energy CSV.
         """
         from openmm.app import DCDFile
 
         u = self.u
         t0 = self.ctx.getState().getTime().value_in_unit(u.picosecond)
         t, values = [], []
+        started = time.time()
 
         with open(dcd_path, "wb") as fh, open(log_path or os.devnull, "w") as log:
             if log_path:
@@ -208,6 +217,6 @@ class Engine:
                 if k % stride == 0:
                     dcd.writeModel(pos, periodicBoxVectors=box)
                 if log_path and k % log_stride == 0:
-                    log.write(self.energy_row(row))
+                    log.write(self.energy_row(row, time.time() - started))
 
         return np.asarray(t), np.asarray(values)

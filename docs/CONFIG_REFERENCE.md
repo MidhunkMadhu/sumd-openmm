@@ -107,8 +107,8 @@ its centre of geometry. All geometric distances use angstroms.
 | `method` | cMD; cMD | GaMD is refused without a GaMD integrator |
 | `output_dir` | path; `sumd_run` | An existing run in it is renamed to `<output_dir>_old00001` (the first free number) before the new run starts; `--overwrite` deletes it instead |
 | `dcd_stride` | positive integer; 1 | Save every Nth sampled frame |
-| `log_stride` | integer; `dcd_stride` | Write an energy log row every Nth sample; must divide the samples per window; 0 turns energy logs off |
-| `energy_terms` | yes/no; no | Add the potential energy by term to the energy logs |
+| `log_stride` | integer; `dcd_stride` | Write an energy log record every Nth sample; must divide the samples per window; 0 turns energy logs off |
+| `energy_terms` | yes/no; yes | Write the potential energy by term in the energy logs |
 | `check_stride` | integer; 10 | Frames of the path so far kept in `check/`: every Nth; 0 turns `check/` off |
 | `check_every` | positive integer; 10 | Update `check/` every Nth AcceptedStep, and at the end |
 | `keep_rejected_dcd` | yes/no; no | Retain rejected trajectories |

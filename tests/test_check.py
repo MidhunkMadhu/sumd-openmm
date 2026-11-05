@@ -45,7 +45,7 @@ def test_check_every_nth_accepted_step_and_at_the_end(tmp_path, monkeypatch, cyc
 
     check = os.path.join(out, "check")
     assert sorted(os.listdir(check)) == ["latest.json", "latest_accepted_step.xml",
-                                         "sumd_energy_log.csv", "sumd_traj_stride3.dcd"]
+                                         "sumd_energy.log", "sumd_energy_log.csv", "sumd_traj_stride3.dcd"]
     with open(os.path.join(check, "latest.json")) as fh:
         latest = json.load(fh)
     last = cycles

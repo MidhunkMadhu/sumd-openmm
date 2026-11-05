@@ -5,6 +5,32 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 0.9.1 (2026-11-05)
+
+Changed
+- Energy logs are written in the layout of an Amber `mdout`: the input
+  file, numbered sections, a labelled block per record, averages,
+  fluctuations and timings, in kcal/mol, Angstrom^3, g/mL and bar. This
+  applies to each window's `.log`, `sumd_energy.log` and the new
+  `check/sumd_energy.log`, and `mdout_analyzer.py` reads them.
+- The table these logs held moves to `.csv` beside each `.log`, and
+  `sumd_energy.csv` joins the final path. `--continue` still reads windows
+  of version 0.9.0.
+- `energy_terms` is on by default.
+
+Added
+- Instantaneous pressure from the barostat (`PRESS`, `Pressure_bar`) and
+  wall time (`Wall_s`, ns/day) in the energy logs.
+
+Fixed
+- Topologies with a virtual site parmed cannot build can be read for
+  selections, such as the type-3 lone pair CGenFF writes for a halogen.
+  Such a site is read as a bond to its parent atom, and `progress.log`
+  says so once per topology.
+- Virtual sites in `[ virtual_sites2 ]`, `[ virtual_sites4 ]` and
+  `[ virtual_sitesn ]` belong to the molecule of their parent atom. They
+  were separate molecules, which split a selection containing one.
+
 ## 0.9.0 (2026-11-04)
 
 Added

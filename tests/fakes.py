@@ -69,7 +69,7 @@ class FakeEngine:
             times.append((i + 1) * 0.1)
             rows.append(self.values.copy())
             if log_path and (i + 1) % log_stride == 0:
-                log.append("%d,%.4f,-1000.0,,,,,,%s\n" % (self.step, self.t, ",".join(map(str, self.values))))
+                log.append("%d,%.4f,-1000.0,,,,,,,,%s\n" % (self.step, self.t, ",".join(map(str, self.values))))
         with open(dcd_path, "w") as fh:
             json.dump(np.asarray(rows).tolist(), fh)
         if log_path:

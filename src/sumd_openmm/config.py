@@ -196,7 +196,7 @@ class SumdConfig:
     equilibration_dir: str = "equilibration"
     dcd_stride: int = 1
     log_stride: Optional[int] = None
-    energy_terms: bool = False
+    energy_terms: bool = True
     check_stride: int = 10
     check_every: int = 10
     keep_rejected_dcd: bool = False
