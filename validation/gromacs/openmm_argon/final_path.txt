@@ -1,0 +1,4 @@
+# accepted_step parent_accepted_step cycle metrics trajectory
+0 None 0 {"metric_1": 14.650699641996628} None
+1 0 1 {"metric_1": 14.648957598707922} windows/accepted/c00001_w0.dcd
+2 1 2 {"metric_1": 14.647239094377788} windows/accepted/c00002_w0.dcd

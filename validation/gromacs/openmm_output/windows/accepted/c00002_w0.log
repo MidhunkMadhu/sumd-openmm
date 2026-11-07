@@ -1,0 +1,141 @@
+
+          -------------------------------------------------------
+          sumd-openmm 0.9.1
+          -------------------------------------------------------
+
+| Run on 11/07/2026 at 02:22:36
+
+File Assignments:
+| MDOUT: c00002_w0.log
+|  PARM: system.top
+|INPCRD: system.gro
+
+
+ Here is the input file:
+
+engine = openmm
+force_field = GROMACS
+topology_file = system.top
+coordinate_file = system.gro
+gromacs_mdp = production.mdp
+platform = CPU
+gromacs_threads = 1
+dt = 0.0001
+temp = 300
+genvel = no
+window_ps = 0.006
+cv_sample_ps = 0.002
+max_cycles = 2
+max_retries_per_parent = 0
+retry_velocities = keep
+random_seed = 42
+output_dir = openmm_output
+metric_1_type = distance
+metric_1_a = indices:0
+metric_1_b = indices:2
+metric_1_direction = decrease
+metric_1_target = -1
+check_stride = 1
+
+metric_1_role = supervise
+
+integrator = verlet
+cons = None
+coulomb = CutoffPeriodic
+vdw = No-switch
+r_off = 1.0
+lj_lrc = no
+pcouple = no
+rewrap_coordinates = no
+reset_step_and_time = no
+
+--------------------------------------------------------------------------------
+   1.  RESOURCE   USE: 
+--------------------------------------------------------------------------------
+
+| Platform: CPU
+| Host: Midhuns-MacBook-Air.local
+
+--------------------------------------------------------------------------------
+   2.  CONTROL  DATA  FOR  THE  RUN
+--------------------------------------------------------------------------------
+
+General flags:
+     imin    =       0, irest   =       1
+
+Molecular dynamics:
+     nstlim  =      60, ntpr    =      20
+     dt      =   0.00010
+     temp0   = 300.00000
+
+--------------------------------------------------------------------------------
+   3.  ATOMIC COORDINATES AND VELOCITIES
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+   4.  RESULTS
+--------------------------------------------------------------------------------
+
+| Cycle 2  Walker 0
+
+ NSTEP =       80   TIME(PS) =       0.008  TEMP(K) =     0.39  PRESS =     0.0
+ Etot   =         0.0263  EKtot   =         0.0023  EPtot      =         0.0240
+ BOND   =         0.0240  NONBND  =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1994
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =      100   TIME(PS) =       0.010  TEMP(K) =     0.41  PRESS =     0.0
+ Etot   =         0.0263  EKtot   =         0.0024  EPtot      =         0.0239
+ BOND   =         0.0239  NONBND  =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1989
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.43  PRESS =     0.0
+ Etot   =         0.0263  EKtot   =         0.0026  EPtot      =         0.0237
+ BOND   =         0.0237  NONBND  =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1983
+ ------------------------------------------------------------------------------
+
+
+      A V E R A G E S   O V E R      3 R E C O R D S
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.41  PRESS =     0.0
+ Etot   =         0.0263  EKtot   =         0.0024  EPtot      =         0.0239
+ BOND   =         0.0239  NONBND  =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1989
+ ------------------------------------------------------------------------------
+
+
+      R M S  F L U C T U A T I O N S
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.02  PRESS =     0.0
+ Etot   =         0.0000  EKtot   =         0.0001  EPtot      =         0.0001
+ BOND   =         0.0001  NONBND  =         0.0000
+                                                    VOLUME     =         0.0000
+                                                    Density    =         0.0000
+| metric_1                         0.0004
+ ------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+   5.  TIMINGS
+--------------------------------------------------------------------------------
+
+| Final Performance Info:
+| -----------------------------------------------------
+| Average timings for all steps:
+|     Elapsed(s) =       0.01 Per Step(ms) =       0.10
+|         ns/day =      86.40   seconds/ns =    1000.00
+| -----------------------------------------------------

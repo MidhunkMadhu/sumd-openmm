@@ -148,6 +148,7 @@ def parse_metrics(cfg):
 
 
 _CHOICES = {
+    "engine": ("openmm", "gromacs", "amber"),
     "selection_syntax": ("cpptraj", "vmd"), "supervision": ("single", "combined", "multistep"),
     "seeding": ("chain", "stratified"), "on_retry_exhaustion": ("accept_best", "step_back"),
     "retry_velocities": ("auto", "reassign", "keep"),
@@ -161,10 +162,14 @@ gmx_include dt temp fric_coeff pcouple p_type cons coulomb vdw r_on r_off platfo
 cuda_precision precision genvel rewrap_coordinates reset_step_and_time lj_lrc
 e14scale rest nstep ewald_Tol p_ref p_freq
 p_XYMode p_ZMode p_tens nstout nstdcd""".split())
+_MD_KEYS.update("gromacs_mdp gromacs_executable gromacs_mdrun_args gromacs_threads gromacs_index".split())
+_MD_KEYS.add("integrator")
+_MD_KEYS.update("amber_mdin amber_executable amber_args amber_threads amber_reference amber_gamd_restart".split())
 
 
 @dataclass
 class SumdConfig:
+    engine: str = "openmm"
     metrics: list = field(default_factory=list)
     selection_syntax: str = "cpptraj"
     supervision: str = "single"
@@ -245,10 +250,12 @@ class SumdConfig:
         return c
 
     def validate(self):
+        if self.engine != "openmm" and self.equilibration != "none":
+            raise ConfigError("engine = %s requires an already equilibrated input system" % self.engine)
         if self.equilibration == "charmm-gui" and not self.charmm_gui_dir:
             raise ConfigError("equilibration = charmm-gui needs charmm_gui_dir")
-        if self.method == "GaMD":
-            raise ConfigError("method = GaMD requires a GaMD integrator")
+        if self.method == "GaMD" and self.engine != "amber":
+            raise ConfigError("method = GaMD requires the Amber backend and a prepared GaMD integrator")
         supervised = [m for m in self.metrics if m.role == "supervise"]
         stratified = [m for m in self.metrics if m.role == "stratify"]
         if self.supervision == "single" and len(supervised) != 1:

@@ -47,11 +47,11 @@ class FakeEngine:
     def reseed(self, seed):
         self.rs = np.random.default_rng(seed)
 
-    def save_xml(self, snap, path):
+    def save_state(self, snap, path):
         with open(path, "w") as fh:
             json.dump(dict(state=snap.state, step=snap.step, epot=snap.epot), fh)
 
-    def load_xml(self, path, step, epot):
+    def load_state(self, path, step, epot):
         with open(path) as fh:
             data = json.load(fh)
         return Snap(data["state"], data["step"], data["epot"])

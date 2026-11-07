@@ -1,0 +1,1409 @@
+{
+  "passed": true,
+  "binding": {
+    "passed": true,
+    "ranks": [
+      {
+        "rank": 0,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71
+        ],
+        "physical_cores": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            2
+          ],
+          [
+            0,
+            3
+          ],
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            5
+          ],
+          [
+            0,
+            6
+          ],
+          [
+            0,
+            7
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "4"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "4",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 1,
+        "cpu_affinity": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79
+        ],
+        "physical_cores": [
+          [
+            0,
+            8
+          ],
+          [
+            0,
+            9
+          ],
+          [
+            0,
+            10
+          ],
+          [
+            0,
+            11
+          ],
+          [
+            0,
+            12
+          ],
+          [
+            0,
+            13
+          ],
+          [
+            0,
+            14
+          ],
+          [
+            0,
+            15
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "5"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "5",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 2,
+        "cpu_affinity": [
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87
+        ],
+        "physical_cores": [
+          [
+            0,
+            16
+          ],
+          [
+            0,
+            17
+          ],
+          [
+            0,
+            18
+          ],
+          [
+            0,
+            19
+          ],
+          [
+            0,
+            20
+          ],
+          [
+            0,
+            21
+          ],
+          [
+            0,
+            22
+          ],
+          [
+            0,
+            23
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "2"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "2",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 3,
+        "cpu_affinity": [
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95
+        ],
+        "physical_cores": [
+          [
+            0,
+            24
+          ],
+          [
+            0,
+            25
+          ],
+          [
+            0,
+            26
+          ],
+          [
+            0,
+            27
+          ],
+          [
+            0,
+            28
+          ],
+          [
+            0,
+            29
+          ],
+          [
+            0,
+            30
+          ],
+          [
+            0,
+            31
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "3"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "3",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 4,
+        "cpu_affinity": [
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          96,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103
+        ],
+        "physical_cores": [
+          [
+            0,
+            32
+          ],
+          [
+            0,
+            33
+          ],
+          [
+            0,
+            34
+          ],
+          [
+            0,
+            35
+          ],
+          [
+            0,
+            36
+          ],
+          [
+            0,
+            37
+          ],
+          [
+            0,
+            38
+          ],
+          [
+            0,
+            39
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "6"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "6",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 5,
+        "cpu_affinity": [
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111
+        ],
+        "physical_cores": [
+          [
+            0,
+            40
+          ],
+          [
+            0,
+            41
+          ],
+          [
+            0,
+            42
+          ],
+          [
+            0,
+            43
+          ],
+          [
+            0,
+            44
+          ],
+          [
+            0,
+            45
+          ],
+          [
+            0,
+            46
+          ],
+          [
+            0,
+            47
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "7"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "7",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 6,
+        "cpu_affinity": [
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          112,
+          113,
+          114,
+          115,
+          116,
+          117,
+          118,
+          119
+        ],
+        "physical_cores": [
+          [
+            0,
+            48
+          ],
+          [
+            0,
+            49
+          ],
+          [
+            0,
+            50
+          ],
+          [
+            0,
+            51
+          ],
+          [
+            0,
+            52
+          ],
+          [
+            0,
+            53
+          ],
+          [
+            0,
+            54
+          ],
+          [
+            0,
+            55
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "0"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "0",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      },
+      {
+        "rank": 7,
+        "cpu_affinity": [
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          120,
+          121,
+          122,
+          123,
+          124,
+          125,
+          126,
+          127
+        ],
+        "physical_cores": [
+          [
+            0,
+            56
+          ],
+          [
+            0,
+            57
+          ],
+          [
+            0,
+            58
+          ],
+          [
+            0,
+            59
+          ],
+          [
+            0,
+            60
+          ],
+          [
+            0,
+            61
+          ],
+          [
+            0,
+            62
+          ],
+          [
+            0,
+            63
+          ]
+        ],
+        "threads": 8,
+        "visible_devices": [
+          "1"
+        ],
+        "gpu_masks": {
+          "ROCR_VISIBLE_DEVICES": "1",
+          "HIP_VISIBLE_DEVICES": null,
+          "CUDA_VISIBLE_DEVICES": null
+        }
+      }
+    ]
+  },
+  "deterministic": {
+    "status": "completed",
+    "passed": true,
+    "commands": [
+      {
+        "name": "reference_091",
+        "returncode": 0
+      },
+      {
+        "name": "current_openmm",
+        "returncode": 0
+      },
+      {
+        "name": "current_gromacs",
+        "returncode": 0
+      }
+    ],
+    "comparisons": {
+      "reference_091_vs_current_openmm": {
+        "shape": [
+          6,
+          64,
+          3
+        ],
+        "bit_identical_saved_coordinates": true,
+        "max_coordinate_difference_A": 0,
+        "rms_coordinate_difference_A": 0,
+        "final_potential_difference_kJmol": 0,
+        "final_velocity_difference_nm_ps": 0,
+        "audits": [
+          {
+            "run": "reference_091",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "current_openmm",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "restart_max_coordinate_difference_A": 0,
+        "same_public_filenames": true,
+        "csv_columns": {
+          "accepted_steps.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "check/sumd_energy_log.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "cv_samples.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "sumd_energy.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "windows.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "windows/accepted/c00001_w0.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "windows/accepted/c00002_w0.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          }
+        },
+        "passed": true
+      },
+      "reference_091_vs_current_gromacs": {
+        "shape": [
+          6,
+          64,
+          3
+        ],
+        "bit_identical_saved_coordinates": true,
+        "max_coordinate_difference_A": 0,
+        "rms_coordinate_difference_A": 0,
+        "final_potential_difference_kJmol": 0.0000013851470939130195,
+        "final_velocity_difference_nm_ps": 5.587935447692871e-9,
+        "audits": [
+          {
+            "run": "reference_091",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "current_gromacs",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "restart_max_coordinate_difference_A": 0,
+        "same_public_filenames": true,
+        "csv_columns": {
+          "accepted_steps.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "check/sumd_energy_log.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "cv_samples.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "sumd_energy.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "windows.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "windows/accepted/c00001_w0.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          },
+          "windows/accepted/c00002_w0.csv": {
+            "identical": false,
+            "only_left": [],
+            "only_right": [
+              "E_bond",
+              "E_angle",
+              "E_dihedral",
+              "E_vdw",
+              "E_elec_direct",
+              "E_elec_recip",
+              "E_nonbonded_recip",
+              "E_other"
+            ]
+          }
+        },
+        "passed": true
+      },
+      "current_openmm_vs_current_gromacs": {
+        "shape": [
+          6,
+          64,
+          3
+        ],
+        "bit_identical_saved_coordinates": true,
+        "max_coordinate_difference_A": 0,
+        "rms_coordinate_difference_A": 0,
+        "final_potential_difference_kJmol": 0.0000013851470939130195,
+        "final_velocity_difference_nm_ps": 5.587935447692871e-9,
+        "audits": [
+          {
+            "run": "current_openmm",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "current_gromacs",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "restart_max_coordinate_difference_A": 0,
+        "same_public_filenames": true,
+        "csv_columns": {
+          "accepted_steps.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "check/sumd_energy_log.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "cv_samples.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "sumd_energy.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "windows.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "windows/accepted/c00001_w0.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          },
+          "windows/accepted/c00002_w0.csv": {
+            "identical": true,
+            "only_left": [],
+            "only_right": []
+          }
+        },
+        "passed": true
+      }
+    },
+    "coordinate_tolerance_A": 0.001,
+    "energy_tolerance_kJmol": 0.001,
+    "reference_source": "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/release-0.9.1/src",
+    "slurm_cpus_per_task": "8",
+    "reference_note": "0.9.1 source; isolated Dardel copy includes only the membrane-pressure logging fix. This deterministic fixture has no barostat, so that fix is inactive.",
+    "source_hashes": {
+      "reference": {
+        "engine.py": "67cce8f7d5fa8f023e9b2dbf3ae27fd574b9dbed73bc2e669e29a9b761415661",
+        "omm_setup.py": "0bccf11be8446862b47ca34cc5b8ec882edbe5e4feed4fcbee52613a9a78ec49",
+        "cli.py": "1bd129e6882230a23415ccfebd5d4e70dd41b3706267029dedf73e32909f7bde",
+        "gromacs.py": null,
+        "executors.py": "0745ee47d4b3e93765e79abdae780e7aa0d66d77d7d4895f9952727bbc89e2f4",
+        "backend.py": null
+      },
+      "current": {
+        "engine.py": "a01d4c9cf2cf61524e4a68b2cccb86f0b7a39e61ff412cc3e0ed2b269bd1bf29",
+        "omm_setup.py": "473a36c05fc06258f2066b04c0d2d42c05f82e585050e007503cc8042505293d",
+        "cli.py": "a891ee64a7394238d81fffb7df725797006688bdf833c07fe1a985ba292e6b5a",
+        "gromacs.py": "85959a1e6ace296f20a288f6fbd60f7ea15b2062ebd83a51a25215d8e9dfe9af",
+        "executors.py": "1f80fc675d004d1fe68d9046fce531fed60604dafbc6cf8e478ae3d619edb6e7",
+        "backend.py": "869e117edf7f1b35a4ac549fd33e804c2cf0b53fbee0d64a4e767a261f94e329"
+      }
+    },
+    "reference_runtime": {
+      "version": "0.9.1",
+      "source": "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/release-0.9.1/src/sumd_openmm/__init__.py"
+    }
+  },
+  "real_openmm_091": {
+    "shape": [
+      60,
+      61955,
+      3
+    ],
+    "bit_identical_saved_coordinates": true,
+    "max_coordinate_difference_A": 0,
+    "rms_coordinate_difference_A": 0,
+    "final_potential_difference_kJmol": 0.0146484375,
+    "final_velocity_difference_nm_ps": 0,
+    "audits": [
+      {
+        "run": "reference_091",
+        "stop_reason": "max_cycles",
+        "supervision": "single",
+        "walkers": 8,
+        "cycles": 3,
+        "windows_simulated": 24,
+        "accepted_windows": 3,
+        "acceptance_rate_per_cycle": 1,
+        "retry_exhaustion_events": 0,
+        "windows_per_rank": {
+          "0": 3,
+          "1": 3,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 3,
+          "6": 3,
+          "7": 3
+        },
+        "start_modes": {
+          "continue": 2,
+          "restore+keep": 22
+        },
+        "restores_checked": 22,
+        "max_abs_restore_dE_kJmol": 0.0302734375,
+        "windows_committed": 3,
+        "windows_discarded": 21,
+        "final_traj_frames": 60,
+        "final_traj_frames_expected": 60,
+        "final_traj_identical_to_path_windows": true,
+        "max_dcd_vs_state_mismatch_A": 0.00000661,
+        "retained_metrics": {
+          "tm3_tm6_dror": {
+            "min": 11.9844,
+            "max": 12.2447,
+            "sd": 0.11614753190088284
+          },
+          "yy_Y210_Y304": {
+            "min": 4.5562,
+            "max": 5.0445,
+            "sd": 0.22967258579697045
+          },
+          "pocket_D103_Y294_heavy": {
+            "min": 4.5674,
+            "max": 4.7958,
+            "sd": 0.10799003040404541
+          },
+          "ionic_lock_R121_E246": {
+            "min": 16.0016,
+            "max": 16.2323,
+            "sd": 0.11620747250786685
+          },
+          "na_D69_N300": {
+            "min": 2.5726,
+            "max": 3.1211,
+            "sd": 0.22490792931034403
+          },
+          "na_D69_S110": {
+            "min": 2.6133,
+            "max": 2.8537,
+            "sd": 0.10268305199333842
+          },
+          "toggle_W264_Y200": {
+            "min": 18.1559,
+            "max": 18.383,
+            "sd": 0.09687533225749478
+          },
+          "toggle_W264_G293": {
+            "min": 3.3109,
+            "max": 3.5292,
+            "sd": 0.1088951330409214
+          },
+          "npxxy_Y304_R121": {
+            "min": 6.6332,
+            "max": 6.9007,
+            "sd": 0.13185358988918952
+          },
+          "pif_I111_F260": {
+            "min": 9.5735,
+            "max": 9.7012,
+            "sd": 0.05440643344311432
+          },
+          "chi1_W264": {
+            "min": -89.0992,
+            "max": -71.0827,
+            "sd": 7.359026101043079
+          },
+          "chi1_Y304": {
+            "min": -69.1364,
+            "max": -42.3743,
+            "sd": 11.122070924367756
+          }
+        },
+        "retained_states_by_cell": {}
+      },
+      {
+        "run": "current_openmm",
+        "stop_reason": "max_cycles",
+        "supervision": "single",
+        "walkers": 8,
+        "cycles": 3,
+        "windows_simulated": 24,
+        "accepted_windows": 3,
+        "acceptance_rate_per_cycle": 1,
+        "retry_exhaustion_events": 0,
+        "windows_per_rank": {
+          "0": 3,
+          "1": 3,
+          "2": 3,
+          "3": 3,
+          "4": 3,
+          "5": 3,
+          "6": 3,
+          "7": 3
+        },
+        "start_modes": {
+          "continue": 2,
+          "restore+keep": 22
+        },
+        "restores_checked": 22,
+        "max_abs_restore_dE_kJmol": 0.0146484375,
+        "windows_committed": 3,
+        "windows_discarded": 21,
+        "final_traj_frames": 60,
+        "final_traj_frames_expected": 60,
+        "final_traj_identical_to_path_windows": true,
+        "max_dcd_vs_state_mismatch_A": 0.00000661,
+        "retained_metrics": {
+          "tm3_tm6_dror": {
+            "min": 11.9844,
+            "max": 12.2447,
+            "sd": 0.11614753190088284
+          },
+          "yy_Y210_Y304": {
+            "min": 4.5562,
+            "max": 5.0445,
+            "sd": 0.22967258579697045
+          },
+          "pocket_D103_Y294_heavy": {
+            "min": 4.5674,
+            "max": 4.7958,
+            "sd": 0.10799003040404541
+          },
+          "ionic_lock_R121_E246": {
+            "min": 16.0016,
+            "max": 16.2323,
+            "sd": 0.11620747250786685
+          },
+          "na_D69_N300": {
+            "min": 2.5726,
+            "max": 3.1211,
+            "sd": 0.22490792931034403
+          },
+          "na_D69_S110": {
+            "min": 2.6133,
+            "max": 2.8537,
+            "sd": 0.10268305199333842
+          },
+          "toggle_W264_Y200": {
+            "min": 18.1559,
+            "max": 18.383,
+            "sd": 0.09687533225749478
+          },
+          "toggle_W264_G293": {
+            "min": 3.3109,
+            "max": 3.5292,
+            "sd": 0.1088951330409214
+          },
+          "npxxy_Y304_R121": {
+            "min": 6.6332,
+            "max": 6.9007,
+            "sd": 0.13185358988918952
+          },
+          "pif_I111_F260": {
+            "min": 9.5735,
+            "max": 9.7012,
+            "sd": 0.05440643344311432
+          },
+          "chi1_W264": {
+            "min": -89.0992,
+            "max": -71.0827,
+            "sd": 7.359026101043079
+          },
+          "chi1_Y304": {
+            "min": -69.1364,
+            "max": -42.3743,
+            "sd": 11.122070924367756
+          }
+        },
+        "retained_states_by_cell": {}
+      }
+    ],
+    "restart_max_coordinate_difference_A": 0,
+    "same_public_filenames": true,
+    "csv_columns": {
+      "accepted_steps.csv": {
+        "identical": true,
+        "only_left": [],
+        "only_right": []
+      },
+      "check/sumd_energy_log.csv": {
+        "identical": false,
+        "only_left": [],
+        "only_right": [
+          "E_nonbonded",
+          "E_nonbonded_recip",
+          "E_other"
+        ]
+      },
+      "cv_samples.csv": {
+        "identical": true,
+        "only_left": [],
+        "only_right": []
+      },
+      "sumd_energy.csv": {
+        "identical": false,
+        "only_left": [],
+        "only_right": [
+          "E_nonbonded",
+          "E_nonbonded_recip",
+          "E_other"
+        ]
+      },
+      "windows.csv": {
+        "identical": true,
+        "only_left": [],
+        "only_right": []
+      },
+      "windows/accepted/c00001_w0.csv": {
+        "identical": false,
+        "only_left": [],
+        "only_right": [
+          "E_nonbonded",
+          "E_nonbonded_recip",
+          "E_other"
+        ]
+      },
+      "windows/accepted/c00002_w2.csv": {
+        "identical": false,
+        "only_left": [],
+        "only_right": [
+          "E_nonbonded",
+          "E_nonbonded_recip",
+          "E_other"
+        ]
+      },
+      "windows/accepted/c00003_w3.csv": {
+        "identical": false,
+        "only_left": [],
+        "only_right": [
+          "E_nonbonded",
+          "E_nonbonded_recip",
+          "E_other"
+        ]
+      }
+    },
+    "passed": true,
+    "energy_tolerance_kJmol": 0.5424435506112933
+  },
+  "real_gromacs": {
+    "run": "current_gromacs",
+    "stop_reason": "max_cycles",
+    "supervision": "single",
+    "walkers": 8,
+    "cycles": 3,
+    "windows_simulated": 24,
+    "accepted_windows": 3,
+    "acceptance_rate_per_cycle": 1,
+    "retry_exhaustion_events": 0,
+    "windows_per_rank": {
+      "0": 3,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 3,
+      "7": 3
+    },
+    "start_modes": {
+      "continue": 2,
+      "restore+keep": 22
+    },
+    "restores_checked": 0,
+    "max_abs_restore_dE_kJmol": null,
+    "windows_committed": 3,
+    "windows_discarded": 21,
+    "final_traj_frames": 60,
+    "final_traj_frames_expected": 60,
+    "final_traj_identical_to_path_windows": true,
+    "max_dcd_vs_state_mismatch_A": 0.00000661,
+    "retained_metrics": {
+      "tm3_tm6_dror": {
+        "min": 12.0434,
+        "max": 12.2008,
+        "sd": 0.07381463269569226
+      },
+      "yy_Y210_Y304": {
+        "min": 4.5063,
+        "max": 5.0618,
+        "sd": 0.2615580926550224
+      },
+      "pocket_D103_Y294_heavy": {
+        "min": 4.5473,
+        "max": 4.7959,
+        "sd": 0.10583677684686596
+      },
+      "ionic_lock_R121_E246": {
+        "min": 15.9057,
+        "max": 16.0018,
+        "sd": 0.03989523781104697
+      },
+      "na_D69_N300": {
+        "min": 2.6702,
+        "max": 2.8631,
+        "sd": 0.0792172697922199
+      },
+      "na_D69_S110": {
+        "min": 2.6038,
+        "max": 2.7269,
+        "sd": 0.053972492994116925
+      },
+      "toggle_W264_Y200": {
+        "min": 18.0505,
+        "max": 18.2593,
+        "sd": 0.09458528779184754
+      },
+      "toggle_W264_G293": {
+        "min": 3.3276,
+        "max": 3.5292,
+        "sd": 0.10045655777499049
+      },
+      "npxxy_Y304_R121": {
+        "min": 6.3042,
+        "max": 6.6918,
+        "sd": 0.17096943927692662
+      },
+      "pif_I111_F260": {
+        "min": 9.4107,
+        "max": 9.6338,
+        "sd": 0.1049642637599423
+      },
+      "chi1_W264": {
+        "min": -89.0833,
+        "max": -75.6706,
+        "sd": 6.849582108420921
+      },
+      "chi1_Y304": {
+        "min": -68.6528,
+        "max": -41.2011,
+        "sd": 11.260371068005117
+      }
+    },
+    "retained_states_by_cell": {}
+  },
+  "gromacs_thread_counts": {
+    "rank_000": [
+      8
+    ],
+    "rank_001": [
+      8
+    ],
+    "rank_002": [
+      8
+    ],
+    "rank_003": [
+      8
+    ],
+    "rank_004": [
+      8
+    ],
+    "rank_005": [
+      8
+    ],
+    "rank_006": [
+      8
+    ],
+    "rank_007": [
+      8
+    ]
+  },
+  "job_id": 27301472,
+  "job_state": "COMPLETED",
+  "exit_code": "0:0",
+  "first_cycle_noise_seeds": [
+    419419048,
+    1603570197,
+    1371072328,
+    1316915481,
+    1071406543,
+    995849139,
+    663602464,
+    1572656660
+  ],
+  "first_cycle_tm3_tm6_spread_A": 0.027150921673577244,
+  "stochastic_walker_independence_passed": true,
+  "reference_note": "0.9.1 source with only the membrane-pressure logging bug fixed; dynamics unchanged"
+}

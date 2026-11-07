@@ -23,6 +23,7 @@ dependencies = ["numpy", "parmed"]
 mpi = ["mpi4py"]
 test = ["pytest", "scipy"]
 vmd = ["MDAnalysis"]
+amber = ["f90nml>=1.4", "netCDF4>=1.6"]
 
 [project.scripts]
 sumd-openmm = "sumd_openmm.cli:main"

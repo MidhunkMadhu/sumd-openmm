@@ -122,6 +122,10 @@ def inspect(run):
 
 def _state_xml_positions(path):
     """Positions (A) and box (A, rows a,b,c) from an OpenMM State XML."""
+    from .backend import is_portable_state, read_state
+    if is_portable_state(path):
+        packet = read_state(path)
+        return packet["pos"] * 10, packet["box"] * 10
     import xml.etree.ElementTree as ET
     pos, box = [], []
     for _, el in ET.iterparse(path):

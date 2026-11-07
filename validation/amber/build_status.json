@@ -1,0 +1,20 @@
+{
+  "status": "built_only",
+  "simulation_validation": "not_performed_as_requested",
+  "amber_simulations_executed": false,
+  "amber_executables_invoked": false,
+  "reference_repository": "https://github.com/MidhunkMadhu/supervisedmdamber",
+  "reference_commit": "5c341725807cdc1469af94b24d21ba10cf7aa1ce",
+  "wheel": "/private/tmp/sumd-amber-build-20261107/sumd_openmm-0.9.1-py3-none-any.whl",
+  "wheel_sha256": "a5cdec4216111146f25f07d273db3b94503f2c6af7780e00d107b00aefbd2284",
+  "package_note": "Unpublished working-tree build; filename version is 0.9.1.",
+  "source_sha256": {
+    "src/sumd_openmm/amber.py": "7ddabff5991add8380cd4970927c20720726767159229a4293a2d746530a2152",
+    "src/sumd_openmm/amber_io.py": "c396a5316f396f5aed8dc515fb8e8b6f4daae404477bab72a32b9feb8de8524a"
+  },
+  "static_checks": [
+    "Python syntax compilation",
+    "wheel build and content inspection",
+    "Slurm shell syntax"
+  ]
+}

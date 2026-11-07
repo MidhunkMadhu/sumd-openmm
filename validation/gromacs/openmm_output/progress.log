@@ -1,0 +1,6 @@
+[2026-11-07T02:22:36] metric metric_1 (distance, supervise, decrease to -1): a = indices:0 -> 1 atom in MOL1; b = indices:2 -> 1 atom in MOL1; initial 6.20
+[2026-11-07T02:22:36] stage: SuMD production, 1 walker(s), up to 2 cycles of 0.006 ps
+[2026-11-07T02:22:36] CV1 = metric_1 (A)
+02:22:36  Cycle=1  AcceptedStep=1  Result=accepted      CV1=6.20 A (-0.00)
+02:22:36  Cycle=2  AcceptedStep=2  Result=accepted      CV1=6.20 A (-0.00)
+[2026-11-07T02:22:36] finished: max_cycles; final AcceptedStep 2; 6 frames

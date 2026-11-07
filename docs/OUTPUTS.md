@@ -12,7 +12,7 @@ simulation of one walker, kept or not.
 | `windows.csv` | One row per window of every walker, kept or not |
 | `cv_samples.csv` | Every metric sample of every window (`write_cv_samples = no` omits it) |
 | `windows.jsonl` | Full record of every window, one JSON object per line |
-| `accepted_steps/accepted_step_NNNNNN.xml` | OpenMM State (coordinates, velocities, box) of each AcceptedStep; a restart point |
+| `accepted_steps/accepted_step_NNNNNN.xml` | Versioned SuMD state envelope: coordinates, velocities, box and native engine restart data; legacy OpenMM State XML remains readable |
 | `windows/accepted/cCCCCC_wW.dcd`, `.log`, `.csv` | Trajectory, energy log and energy table of each kept window (cycle C, walker W) |
 | `windows/rejected/` | Trajectories and energy logs of other windows, with `keep_rejected_dcd = yes` |
 | `sumd_traj.dcd` | The kept windows of the final path, joined in order |

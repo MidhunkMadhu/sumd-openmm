@@ -1,0 +1,3 @@
+cycle,walker,start_accepted_step,outcome,new_accepted_step,retries_used,metric_1,slope,score,wallclock_s
+1,0,0,kept,1,1,13.1362,0.71047,-0.71047,0.0
+2,0,1,kept,2,1,13.1404,0.70974,-0.70974,0.0

@@ -73,7 +73,7 @@ class RankWorker:
         return nid in self.nodes
 
     def load_node(self, nid, xml_path, step, epot):
-        self._cache(nid, self.eng.load_xml(xml_path, step, epot))
+        self._cache(nid, self.eng.load_state(xml_path, step, epot))
 
     def packet_of(self, nid):
         return self.eng.packet(self.nodes[nid])
@@ -86,7 +86,7 @@ class RankWorker:
     def root(self, xml_path):
         snap = self.eng.snapshot()
         values = self.eng.current_cvs(self.ev)
-        self.eng.save_xml(snap, xml_path)
+        self.eng.save_state(snap, xml_path)
         self._cache(0, snap)
         self.ctx = ("node", 0)
         return dict(metrics=np.asarray(values, float),
@@ -122,6 +122,8 @@ class RankWorker:
                 start_mode = "restore+reassign" if seed is not None else "restore+keep"
 
             tmp = os.path.join(self.out, "windows", "tmp", "c%05d_w%d.dcd" % (cycle, w))
+            dynamics_seed = (self.eng.prepare_window(cycle, w)
+                             if hasattr(self.eng, "prepare_window") else None)
             wall0 = time.time()
             t, values = self.eng.run_window(self.samples, self.sps, self.ev, tmp, self.stride,
                                                 data_path(tmp) if self.log_stride else None, self.log_stride)
@@ -135,7 +137,8 @@ class RankWorker:
 
             out.append(dict(
                 key=key, w=w, cycle=cycle, rank=self.rank, host=self.host, device=self.device,
-                t=t, metrics=values, seed=seed, start_mode=start_mode, restore_dE=dE,
+                t=t, metrics=values, seed=seed, dynamics_seed=dynamics_seed,
+                start_mode=start_mode, restore_dE=dE,
                 dcd_tmp=tmp, wall=wall, t_start_wall=wall0,
                 time_ps=self.eng.time_ps(snap),
                 step=snap.step, epot=snap.epot,
@@ -148,7 +151,7 @@ class RankWorker:
         """Write the committed walker's State as node `node_id`; drop the rest."""
         if commit_key is not None and commit_key in self.pending:
             snap = self.pending[commit_key]
-            self.eng.save_xml(snap, xml_path)
+            self.eng.save_state(snap, xml_path)
             self._cache(node_id, snap)
             if self.ctx == ("key", commit_key):
                 self.ctx = ("node", node_id)

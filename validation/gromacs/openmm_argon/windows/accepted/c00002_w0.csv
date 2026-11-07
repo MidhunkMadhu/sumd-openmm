@@ -1,0 +1,4 @@
+Step,Time_ps,Epot_kJmol,Ekin_kJmol,Etot_kJmol,Temp_K,Pressure_bar,Volume_nm3,Density_gmL,Wall_s,E_bond,E_angle,E_dihedral,E_vdw,E_elec_direct,E_nonbonded,E_elec_recip,E_nonbonded_recip,E_other,metric_1
+80,0.0080,-14.6240,3.4703,-11.1538,4.417,,21.95200,0.19340,0.003,,,,,,-14.6240,,,,14.6484
+100,0.0100,-14.6239,3.4702,-11.1538,4.417,,21.95200,0.19340,0.007,,,,,,-14.6239,,,,14.6478
+120,0.0120,-14.6239,3.4701,-11.1538,4.416,,21.95200,0.19340,0.010,,,,,,-14.6239,,,,14.6472

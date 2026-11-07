@@ -5,6 +5,37 @@ second marks a larger release. `sumd-openmm --version` prints the
 installed version; install a given version with `@vX.Y.Z` in place of
 `@main`.
 
+## 1.0.0 (2026-11-07)
+
+Added
+- Interchangeable OpenMM and native GROMACS backends with shared CVs,
+  supervision, DCD trajectories, energy columns and versioned state envelopes.
+- GROMACS CPU allocation from Slurm, one GPU per walker, independent
+  stochastic noise streams, native checkpoint branching and continuation.
+- Native Amber cMD/GaMD adapter (pmemd.cuda, pmemd.hip) and optional
+  dependencies. GaMD has not been run.
+- Dardel reference comparisons against 0.9.1, binding audits, and native
+  Amber/GROMACS examples following the supervisedmdamber RMSD workflow.
+
+Fixed
+- Membrane and anisotropic pressure logging handles vector pressure.
+- Shared restart exports preserve whole-molecule periodic wrapping.
+- External engines do not inherit the controller's MPI/Slurm rank identity.
+- Amber starts: pmemd integrates a step even with nstlim = 0, so the input
+  state is kept and only the energy of its first record is used.
+  genvel = yes draws Maxwell-Boltzmann velocities instead.
+- GROMACS windows keep the MDP's nstcalcenergy (reduced to divide the CV
+  sample interval) instead of 1, which cost 3-9x of the GPU throughput.
+- GROMACS energy rows include CMAP in E_dihedral.
+- Amber energy rows put Urey-Bradley in E_angle and impropers in E_dihedral.
+- GROMACS and Amber energy rows use the OpenMM number formats.
+- GROMACS velocity reassignment no longer re-reads the topology.
+
+Compatibility
+- OpenMM remains the default engine. Legacy OpenMM State XML is readable;
+  new accepted states use the common envelope with native restart data.
+- The Dardel production installation is not upgraded by this local release.
+
 ## 0.9.1 (2026-11-05)
 
 Changed

@@ -17,6 +17,52 @@ import struct
 HEADER_BYTES = 276
 
 
+class DCDWriter:
+    """Write the common CHARMM DCD layout without importing an MD engine.
+
+    Input coordinates and row box vectors are in nm. Frame data is float32
+    Angstroms, with cell angles stored as cosines, matching the reader below.
+    """
+
+    def __init__(self, fh, natoms, dt_ps, first_step, interval, periodic=True):
+        self.fh, self.n, self.first, self.interval = fh, natoms, first_step, interval
+        self.periodic, self.count = periodic, 0
+        header = bytearray(HEADER_BYTES)
+        struct.pack_into("<i4s", header, 0, 84, b"CORD")
+        struct.pack_into("<ii", header, 12, first_step, interval)
+        struct.pack_into("<f", header, 44, dt_ps / 0.04888821)
+        struct.pack_into("<i", header, 48, int(periodic))
+        struct.pack_into("<5i", header, 84, 24, 84, 164, 2, 0)
+        header[100:180] = b"Created by SuMD".ljust(80)
+        header[180:260] = b"Coordinates in Angstroms".ljust(80)
+        struct.pack_into("<4i", header, 260, 164, 4, natoms, 4)
+        fh.write(header)
+
+    def write(self, positions, box=None):
+        import numpy as np
+        positions = np.asarray(positions)
+        if positions.shape != (self.n, 3) or not np.all(np.isfinite(positions)):
+            raise ValueError("invalid DCD coordinates")
+        self.count += 1
+        self.fh.seek(8)
+        self.fh.write(struct.pack("<i", self.count))
+        self.fh.seek(20)
+        self.fh.write(struct.pack("<i", self.first + (self.count - 1) * self.interval))
+        self.fh.seek(0, os.SEEK_END)
+        if self.periodic:
+            box = np.asarray(box)
+            lengths = np.linalg.norm(box, axis=1)
+            cosines = [np.dot(box[i], box[j]) / (lengths[i] * lengths[j])
+                       for i, j in ((0, 1), (0, 2), (1, 2))]
+            self.fh.write(struct.pack("<i6di", 48, lengths[0] * 10, cosines[0],
+                                      lengths[1] * 10, cosines[1], cosines[2], lengths[2] * 10, 48))
+        size = struct.pack("<i", 4 * self.n)
+        for axis in range(3):
+            self.fh.write(size)
+            self.fh.write(np.asarray(positions[:, axis] * 10, dtype="<f4").tobytes())
+            self.fh.write(size)
+
+
 def read_header(path):
     with open(path, "rb") as f:
         head = f.read(HEADER_BYTES)

@@ -24,6 +24,20 @@ FINAL_DATA = "sumd_energy.csv"
 CHECK_DATA = "sumd_energy_log.csv"
 
 KJ_PER_KCAL = 4.184
+
+
+def format_row(step, time_ps, epot, ekin, temperature, pressure, volume, density, wall,
+               terms, metrics):
+    """One energy-CSV row in the OpenMM backend's number formats; None is blank."""
+    def f(fmt, value):
+        return "" if value is None or value == "" else fmt % float(value)
+    fields = ["%d" % int(step), f("%.4f", time_ps), f("%.4f", epot), f("%.4f", ekin),
+              f("%.4f", None if epot is None or ekin is None else float(epot) + float(ekin)),
+              f("%.3f", temperature), f("%.3f", pressure), f("%.5f", volume), f("%.5f", density),
+              f("%.3f", wall)]
+    fields += [f("%.4f", terms.get(name)) for name in ENERGY_TERMS]
+    fields += ["%.4f" % value for value in metrics]
+    return ",".join(fields) + "\n"
 TERM_NAMES = ("BOND", "ANGLE", "DIHED", "EELEC", "NONBND", "RECIP", "OTHER", "VDWAALS")
 SECTION = "-" * 80
 RECORD_END = " " + "-" * 78

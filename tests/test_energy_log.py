@@ -250,12 +250,20 @@ def test_row_agrees_with_state_data_reporter():
     assert [float(x) for x in logged] == pytest.approx([float(x) for x in expected[1:]], abs=1e-3)
 
 
-def _barostat_run(logging):
+def _barostat_run(logging, kind="isotropic"):
     from types import SimpleNamespace
     from openmm import app, unit
     from sumd_openmm.engine import Engine
     openmm, system, positions, _ = _forces()
-    barostat = openmm.MonteCarloBarostat(1 * unit.bar, 300 * unit.kelvin, 2)
+    if kind == "membrane":
+        cls = openmm.MonteCarloMembraneBarostat
+        barostat = cls(1 * unit.bar, 0 * unit.bar * unit.nanometer, 300 * unit.kelvin,
+                       cls.XYIsotropic, cls.ZFree, 2)
+    elif kind == "anisotropic":
+        barostat = openmm.MonteCarloAnisotropicBarostat(
+            openmm.Vec3(1, 1, 1) * unit.bar, 300 * unit.kelvin, True, True, True, 2)
+    else:
+        barostat = openmm.MonteCarloBarostat(1 * unit.bar, 300 * unit.kelvin, 2)
     barostat.setRandomNumberSeed(5)
     system.addForce(barostat)
     topology = app.Topology()
@@ -277,9 +285,10 @@ def _barostat_run(logging):
     return rows, state.getPositions(asNumpy=True)._value, state.getPeriodicBoxVolume()._value
 
 
-def test_pressure_is_logged_without_changing_the_dynamics():
-    rows, positions, volume = _barostat_run(True)
-    _, positions_off, volume_off = _barostat_run(False)
+@pytest.mark.parametrize("kind", ["isotropic", "membrane", "anisotropic"])
+def test_pressure_is_logged_without_changing_the_dynamics(kind):
+    rows, positions, volume = _barostat_run(True, kind)
+    _, positions_off, volume_off = _barostat_run(False, kind)
     assert np.array_equal(positions, positions_off) and volume == volume_off
     assert all(np.isfinite(float(row.split(",")[6])) for row in rows)
     volumes = [float(row.split(",")[7]) for row in rows]

@@ -1,7 +1,9 @@
 # sumd-openmm
 
 Supervised molecular dynamics (SuMD) and multiple-walker supervised
-molecular dynamics (mwSuMD) with OpenMM.
+molecular dynamics (mwSuMD) with OpenMM and native GROMACS backends.
+An optional native Amber cMD/GaMD backend is built but has not been
+simulation-validated. See [engine backends and validation](docs/BACKENDS.md).
 
 ## Methods
 
@@ -42,9 +44,9 @@ AcceptedSteps can seed unbiased simulations for those.
 
 ## Install
 
-Every setup starts from a conda environment with OpenMM from
-conda-forge. Choose the section that matches the hardware the
-simulations run on.
+For the OpenMM backend, start from a conda environment with OpenMM from
+conda-forge. Choose the section that matches the hardware the simulations
+run on. Native-engine requirements are described in [backends](docs/BACKENDS.md).
 
 ### CPU only
 

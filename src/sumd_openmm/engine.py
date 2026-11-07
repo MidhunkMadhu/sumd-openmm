@@ -16,6 +16,7 @@ import time
 import numpy as np
 
 from .energylog import COLUMNS
+from .backend import read_state, write_state, is_portable_state
 
 
 class Snap:
@@ -26,11 +27,14 @@ class Snap:
 
 
 class Engine:
+    name = "openmm"
 
     def __init__(self, omm, log):
         from openmm import unit
         self.u = unit
         self.omm = omm
+        for name in ("dt_ps", "temperature_K", "platform_name", "crdfile"):
+            setattr(self, name, getattr(omm, name, None))
         self.sim = omm.simulation
         self.ctx = omm.simulation.context
         self.log = log
@@ -113,15 +117,25 @@ class Engine:
         """New Maxwell-Boltzmann velocities at the run temperature."""
         self.ctx.setVelocitiesToTemperature(self.omm.temperature_K * self.u.kelvin, int(seed))
 
-    def save_xml(self, snap, path):
+    def save_state(self, snap, path):
         from openmm import XmlSerializer
-        with open(path, "w") as f:
-            f.write(XmlSerializer.serialize(snap.state))
+        write_state(path, self.packet(snap), self.name,
+                    XmlSerializer.serialize(snap.state).encode(), "openmm-state-xml")
 
-    def load_xml(self, path, step, epot):
+    def load_state(self, path, step, epot):
         from openmm import XmlSerializer
+        if is_portable_state(path):
+            packet = read_state(path)
+            if packet["engine"] != self.name:
+                raise ValueError("cannot resume another MD engine's state; use an interchange restart")
+            return Snap(XmlSerializer.deserialize(packet["native"].decode()),
+                        packet["step"], packet["epot"])
         with open(path) as f:
             return Snap(XmlSerializer.deserialize(f.read()), step, epot)
+
+    # Compatibility for callers of the original OpenMM engine.
+    save_xml = save_state
+    load_xml = load_state
 
     # ---------------------------------------------- dynamics
 
@@ -166,7 +180,10 @@ class Engine:
         pressure = ""
         if self.barostat is not None:
             bar = self.barostat.computeCurrentPressure(self.ctx)
-            pressure = "%.3f" % (bar.value_in_unit(u.bar) if u.is_quantity(bar) else bar)
+            components = bar.value_in_unit(u.bar) if u.is_quantity(bar) else bar
+            # Membrane and anisotropic barostats return Px, Py, Pz.
+            # The common scalar column is their hydrostatic mean.
+            pressure = "%.3f" % float(np.mean(components))
 
         volume = density = ""
         if self.periodic:
@@ -177,8 +194,10 @@ class Engine:
                   "%.4f" % st.getTime().value_in_unit(u.picosecond),
                   "%.4f" % epot, "%.4f" % ekin, "%.4f" % (epot + ekin), "%.3f" % temperature,
                   pressure, volume, density, "%.3f" % wall]
-        fields += ["%.4f" % self.ctx.getState(getEnergy=True, groups={group})
-                   .getPotentialEnergy().value_in_unit(kj) for group in self.terms.values()]
+        from .energylog import ENERGY_TERMS
+        fields += [("%.4f" % self.ctx.getState(getEnergy=True, groups={self.terms[name]})
+                    .getPotentialEnergy().value_in_unit(kj)) if name in self.terms else ""
+                   for name in ENERGY_TERMS]
         fields += ["%.4f" % value for value in metrics]
         return ",".join(fields) + "\n"
 
@@ -191,7 +210,7 @@ class Engine:
         Frames are wrapped per molecule, as in the production DCDReporter.
         With log_path, every `log_stride`-th sample adds a row to that energy CSV.
         """
-        from openmm.app import DCDFile
+        from .dcdtools import DCDWriter
 
         u = self.u
         t0 = self.ctx.getState().getTime().value_in_unit(u.picosecond)
@@ -200,10 +219,11 @@ class Engine:
 
         with open(dcd_path, "wb") as fh, open(log_path or os.devnull, "w") as log:
             if log_path:
-                log.write(",".join(COLUMNS + list(self.terms) + list(evaluator.names)) + "\n")
-            dcd = DCDFile(fh, self.sim.topology, self.omm.dt_ps * u.picoseconds,
-                          firstStep=self.sim.currentStep + steps_per_sample * stride,
-                          interval=steps_per_sample * stride)
+                from .energylog import ENERGY_TERMS
+                log.write(",".join(COLUMNS + list(ENERGY_TERMS) + list(evaluator.names)) + "\n")
+            dcd = DCDWriter(fh, self.omm.system.getNumParticles(), self.omm.dt_ps,
+                            self.sim.currentStep + steps_per_sample * stride,
+                            steps_per_sample * stride, self.periodic)
 
             for k in range(1, n_samples + 1):
                 self.sim.step(steps_per_sample)
@@ -215,7 +235,8 @@ class Engine:
                 values.append(row)
 
                 if k % stride == 0:
-                    dcd.writeModel(pos, periodicBoxVectors=box)
+                    dcd.write(pos.value_in_unit(u.nanometer),
+                              None if box is None else box.value_in_unit(u.nanometer))
                 if log_path and k % log_stride == 0:
                     log.write(self.energy_row(row, time.time() - started))
 

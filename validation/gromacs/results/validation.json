@@ -1,0 +1,325 @@
+{
+  "gpu_requested": false,
+  "comparisons": {
+    "system": {
+      "same_public_files": true,
+      "files_only_left": [],
+      "files_only_right": [],
+      "same_csv_columns": true,
+      "same_json_keys": true,
+      "coordinate_shape": [
+        6,
+        3,
+        3
+      ],
+      "bit_identical_coordinates": false,
+      "max_coordinate_difference_A": 3.814697265625e-05,
+      "final_potential_difference_kJmol": 5.282397743111567e-07,
+      "audits": [
+        {
+          "run": "openmm_system",
+          "stop_reason": "max_cycles",
+          "supervision": "single",
+          "walkers": 1,
+          "cycles": 2,
+          "windows_simulated": 2,
+          "accepted_windows": 2,
+          "acceptance_rate_per_cycle": 1.0,
+          "retry_exhaustion_events": 0,
+          "windows_per_rank": {
+            "0": 2
+          },
+          "start_modes": {
+            "continue": 2
+          },
+          "restores_checked": 0,
+          "max_abs_restore_dE_kJmol": null,
+          "windows_committed": 2,
+          "windows_discarded": 0,
+          "final_traj_frames": 6,
+          "final_traj_frames_expected": 6,
+          "final_traj_identical_to_path_windows": true,
+          "max_dcd_vs_state_mismatch_A": 9.97e-07,
+          "retained_metrics": {
+            "metric_1": {
+              "min": 6.1983,
+              "max": 6.2008,
+              "sd": 0.0012662279942150792
+            }
+          },
+          "retained_states_by_cell": {}
+        },
+        {
+          "run": "gromacs_system",
+          "stop_reason": "max_cycles",
+          "supervision": "single",
+          "walkers": 1,
+          "cycles": 2,
+          "windows_simulated": 2,
+          "accepted_windows": 2,
+          "acceptance_rate_per_cycle": 1.0,
+          "retry_exhaustion_events": 0,
+          "windows_per_rank": {
+            "0": 2
+          },
+          "start_modes": {
+            "continue": 2
+          },
+          "restores_checked": 0,
+          "max_abs_restore_dE_kJmol": null,
+          "windows_committed": 2,
+          "windows_discarded": 0,
+          "final_traj_frames": 6,
+          "final_traj_frames_expected": 6,
+          "final_traj_identical_to_path_windows": true,
+          "max_dcd_vs_state_mismatch_A": 9.83e-07,
+          "retained_metrics": {
+            "metric_1": {
+              "min": 6.1983,
+              "max": 6.2008,
+              "sd": 0.0012662279942150792
+            }
+          },
+          "retained_states_by_cell": {}
+        }
+      ],
+      "passed": true
+    },
+    "argon": {
+      "same_public_files": true,
+      "files_only_left": [],
+      "files_only_right": [],
+      "same_csv_columns": true,
+      "same_json_keys": true,
+      "coordinate_shape": [
+        6,
+        64,
+        3
+      ],
+      "bit_identical_coordinates": false,
+      "max_coordinate_difference_A": 0.000125885009765625,
+      "final_potential_difference_kJmol": 7.5079021453206e-06,
+      "audits": [
+        {
+          "run": "openmm_argon",
+          "stop_reason": "max_cycles",
+          "supervision": "single",
+          "walkers": 1,
+          "cycles": 2,
+          "windows_simulated": 2,
+          "accepted_windows": 2,
+          "acceptance_rate_per_cycle": 0.0,
+          "retry_exhaustion_events": 2,
+          "windows_per_rank": {
+            "0": 2
+          },
+          "start_modes": {
+            "continue": 2
+          },
+          "restores_checked": 0,
+          "max_abs_restore_dE_kJmol": null,
+          "windows_committed": 2,
+          "windows_discarded": 0,
+          "final_traj_frames": 6,
+          "final_traj_frames_expected": 6,
+          "final_traj_identical_to_path_windows": true,
+          "max_dcd_vs_state_mismatch_A": 1.27e-06,
+          "retained_metrics": {
+            "metric_1": {
+              "min": 13.1319,
+              "max": 13.1404,
+              "sd": 0.004250098038084794
+            }
+          },
+          "retained_states_by_cell": {}
+        },
+        {
+          "run": "gromacs_argon",
+          "stop_reason": "max_cycles",
+          "supervision": "single",
+          "walkers": 1,
+          "cycles": 2,
+          "windows_simulated": 2,
+          "accepted_windows": 2,
+          "acceptance_rate_per_cycle": 0.0,
+          "retry_exhaustion_events": 2,
+          "windows_per_rank": {
+            "0": 2
+          },
+          "start_modes": {
+            "continue": 2
+          },
+          "restores_checked": 0,
+          "max_abs_restore_dE_kJmol": null,
+          "windows_committed": 2,
+          "windows_discarded": 0,
+          "final_traj_frames": 6,
+          "final_traj_frames_expected": 6,
+          "final_traj_identical_to_path_windows": true,
+          "max_dcd_vs_state_mismatch_A": 1.39e-06,
+          "retained_metrics": {
+            "metric_1": {
+              "min": 13.1319,
+              "max": 13.1405,
+              "sd": 0.0042999999999997485
+            }
+          },
+          "retained_states_by_cell": {}
+        }
+      ],
+      "passed": true
+    }
+  },
+  "continuation_bit_identical": true,
+  "keep_audit": {
+    "run": "gromacs_retry_keep",
+    "stop_reason": "converged",
+    "supervision": "single",
+    "walkers": 1,
+    "cycles": 1,
+    "windows_simulated": 1,
+    "accepted_windows": 1,
+    "acceptance_rate_per_cycle": 1.0,
+    "retry_exhaustion_events": 0,
+    "windows_per_rank": {
+      "0": 1
+    },
+    "start_modes": {
+      "continue": 1
+    },
+    "restores_checked": 0,
+    "max_abs_restore_dE_kJmol": null,
+    "windows_committed": 1,
+    "windows_discarded": 0,
+    "final_traj_frames": 3,
+    "final_traj_frames_expected": 3,
+    "final_traj_identical_to_path_windows": true,
+    "max_dcd_vs_state_mismatch_A": 1.39e-06,
+    "retained_metrics": {
+      "metric_1": {
+        "min": 13.1319,
+        "max": 13.1362,
+        "sd": 0.0030405591591026048
+      }
+    },
+    "retained_states_by_cell": {}
+  },
+  "reassign_audit": {
+    "run": "gromacs_retry_reassign",
+    "stop_reason": "converged",
+    "supervision": "single",
+    "walkers": 2,
+    "cycles": 1,
+    "windows_simulated": 2,
+    "accepted_windows": 1,
+    "acceptance_rate_per_cycle": 1.0,
+    "retry_exhaustion_events": 0,
+    "windows_per_rank": {
+      "0": 2
+    },
+    "start_modes": {
+      "continue": 1,
+      "restore+reassign": 1
+    },
+    "restores_checked": 0,
+    "max_abs_restore_dE_kJmol": null,
+    "windows_committed": 1,
+    "windows_discarded": 1,
+    "final_traj_frames": 3,
+    "final_traj_frames_expected": 3,
+    "final_traj_identical_to_path_windows": true,
+    "max_dcd_vs_state_mismatch_A": 1.39e-06,
+    "retained_metrics": {
+      "metric_1": {
+        "min": 13.1319,
+        "max": 13.1362,
+        "sd": 0.0030405591591026048
+      }
+    },
+    "retained_states_by_cell": {}
+  },
+  "commands": [
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "openmm_system.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_system.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "openmm_argon.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_argon.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_argon.inp",
+        "--extend",
+        "1"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_uninterrupted.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_retry_keep.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    },
+    {
+      "command": [
+        "/Users/midhunkmadhu/miniforge3/envs/sumd-openmm/bin/python",
+        "-m",
+        "sumd_openmm",
+        "gromacs_retry_reassign.inp",
+        "--overwrite"
+      ],
+      "returncode": 0
+    }
+  ],
+  "passed": true
+}

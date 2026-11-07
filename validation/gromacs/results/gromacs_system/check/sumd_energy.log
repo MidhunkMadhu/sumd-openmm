@@ -1,0 +1,162 @@
+
+          -------------------------------------------------------
+          sumd-openmm 0.9.1
+          -------------------------------------------------------
+
+| Run on 11/07/2026 at 02:24:16
+
+File Assignments:
+| MDOUT: sumd_energy.log.tmp
+|  PARM: system.top
+|INPCRD: /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/system.gro
+
+
+ Here is the input file:
+
+engine = gromacs
+force_field = GROMACS
+topology_file = system.top
+coordinate_file = system.gro
+gromacs_mdp = production.mdp
+platform = CPU
+gromacs_threads = 1
+dt = 0.0001
+temp = 300
+genvel = no
+window_ps = 0.006
+cv_sample_ps = 0.002
+max_cycles = 2
+max_retries_per_parent = 0
+retry_velocities = keep
+random_seed = 42
+output_dir = gromacs_system
+metric_1_type = distance
+metric_1_a = indices:0
+metric_1_b = indices:2
+metric_1_direction = decrease
+metric_1_target = -1
+check_stride = 1
+
+metric_1_role = supervise
+
+gromacs_executable = gmx
+
+--------------------------------------------------------------------------------
+   1.  RESOURCE   USE: 
+--------------------------------------------------------------------------------
+
+| Platform: GROMACS CPU
+| Host: Midhuns-MacBook-Air.local
+
+--------------------------------------------------------------------------------
+   2.  CONTROL  DATA  FOR  THE  RUN
+--------------------------------------------------------------------------------
+
+General flags:
+     imin    =       0, irest   =       1
+
+Molecular dynamics:
+     nstlim  =     120, ntpr    =      20
+     dt      =   0.00010
+     temp0   = 300.00000
+
+--------------------------------------------------------------------------------
+   3.  ATOMIC COORDINATES AND VELOCITIES
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+   4.  RESULTS
+--------------------------------------------------------------------------------
+
+| Cycle 1  AcceptedStep 1  Walker 0
+
+ NSTEP =       20   TIME(PS) =       0.002  TEMP(K) =     0.35  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0021  EPtot      =         0.0242
+ BOND   =         0.0242  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.2006
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =       40   TIME(PS) =       0.004  TEMP(K) =     0.36  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0021  EPtot      =         0.0242
+ BOND   =         0.0242  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.2002
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =       60   TIME(PS) =       0.006  TEMP(K) =     0.37  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0022  EPtot      =         0.0241
+ BOND   =         0.0241  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1999
+ ------------------------------------------------------------------------------
+
+
+| Cycle 2  AcceptedStep 2  Walker 0
+
+ NSTEP =       80   TIME(PS) =       0.008  TEMP(K) =     0.39  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0023  EPtot      =         0.0240
+ BOND   =         0.0240  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1994
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =      100   TIME(PS) =       0.010  TEMP(K) =     0.41  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0024  EPtot      =         0.0239
+ BOND   =         0.0239  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1989
+ ------------------------------------------------------------------------------
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.43  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0026  EPtot      =         0.0237
+ BOND   =         0.0237  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1983
+ ------------------------------------------------------------------------------
+
+
+      A V E R A G E S   O V E R      6 R E C O R D S
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.38  PRESS =    -0.5
+ Etot   =         0.0263  EKtot   =         0.0023  EPtot      =         0.0240
+ BOND   =         0.0240  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =     64000.0000
+                                                    Density    =         0.0009
+| metric_1                         6.1996
+ ------------------------------------------------------------------------------
+
+
+      R M S  F L U C T U A T I O N S
+
+
+ NSTEP =      120   TIME(PS) =       0.012  TEMP(K) =     0.03  PRESS =     0.0
+ Etot   =         0.0000  EKtot   =         0.0002  EPtot      =         0.0002
+ BOND   =         0.0002  EELEC   =         0.0000  VDWAALS    =         0.0000
+                                                    VOLUME     =         0.0000
+                                                    Density    =         0.0000
+| metric_1                         0.0008
+ ------------------------------------------------------------------------------
+
+
+--------------------------------------------------------------------------------
+   5.  TIMINGS
+--------------------------------------------------------------------------------
+
+| Final Performance Info:
+| -----------------------------------------------------
+| Average timings for all steps:
+|     Elapsed(s) =       0.08 Per Step(ms) =       0.64
+|         ns/day =      13.56   seconds/ns =    6373.98
+| -----------------------------------------------------

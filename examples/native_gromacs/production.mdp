@@ -1,0 +1,23 @@
+; Equilibrated NVT system; gamma=5/ps corresponds to tau-t=0.2 ps.
+integrator = sd
+dt = 0.002
+tcoupl = no
+tc-grps = System
+ref-t = 310
+tau-t = 0.2
+constraints = h-bonds
+cutoff-scheme = Verlet
+nstlist = 20
+rlist = 1.2
+coulombtype = PME
+rcoulomb = 1.2
+ewald-rtol = 1e-6
+vdwtype = Cut-off
+vdw-modifier = Force-switch
+rvdw-switch = 1.0
+rvdw = 1.2
+DispCorr = no
+pcoupl = no
+pbc = xyz
+continuation = yes
+gen-vel = no

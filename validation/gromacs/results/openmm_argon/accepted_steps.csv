@@ -1,0 +1,4 @@
+accepted_step,parent_accepted_step,cycle,walker,metric_1,time_ps,md_step,epot_kJmol,reason,trajectory,restart_file,band,cell
+0,,0,,13.1319,0.0,0,-14.625,starting structure,,accepted_steps/accepted_step_000000.xml,,
+1,0,1,0,13.1362,0.006000000000000003,60,-14.624,retry limit; accepting least-bad attempt,windows/accepted/c00001_w0.dcd,accepted_steps/accepted_step_000001.xml,,
+2,1,2,0,13.1404,0.011999999999999983,120,-14.624,retry limit; accepting least-bad attempt,windows/accepted/c00002_w0.dcd,accepted_steps/accepted_step_000002.xml,,

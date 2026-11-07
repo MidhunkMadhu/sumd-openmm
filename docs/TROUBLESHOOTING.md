@@ -273,6 +273,62 @@ site's name, to leave it out.
 between a virtual site and its parent atom. Remove that bond from
 `[ bonds ]`.
 
+**`TypeError: not all arguments converted during string formatting` in
+`energy_row`, with a membrane or anisotropic barostat.** The original
+0.9.1 logger expected scalar pressure, but these barostats return three
+components. The corrected logger writes their mean to `Pressure_bar`.
+Version 0.9.0 wrote zero for pressure, so an older installation can run the
+same system without encountering this logging error. The fix does not
+change the integrator or barostat settings.
+
+**GROMACS on Dardel segfaults after printing its performance summary.**
+Check the executable's runtime libraries with `ldd`, as well as its
+`--version` output. The `PDCOLD/24.11` GPU module was observed loading
+ROCm 6 alongside a Cray GPU-aware MPI library requiring ROCm 7; its crash
+dump pointed to HIP shutdown from `libmpi_gtl_hsa`. The validation script
+uses `PDC/26.03` with
+`gromacs/2026.1-gpu-cpe2603-rocm7.0.2` to keep that runtime stack consistent.
+Do not treat a nonzero `mdrun` exit as success merely because output files
+exist. Run simulation checks through Slurm on a compute node.
+
+**GROMACS reports `Generating velocities is inconsistent with attempting
+to continue a previous run`.** An initial state with `genvel = yes` must
+use `gen-vel = yes` and `continuation = no`. The backend sets that pairing
+when it prepares the initial state. Later windows restore their accepted
+state rather than generating velocities through this initial-state path.
+
+**`Invalid T coupling input: 0 groups` with `integrator = sd`.** Set
+`tc-grps = System` when `ref-t` and `tau-t` describe one common temperature
+group. Stochastic dynamics still needs these group settings even with
+`tcoupl = no`; `validation/gromacs/taar1_smoke.mdp` provides an example.
+
+**An external GROMACS walker uses the controller's full MPI rank count.**
+Each backend process must be independent. The backend removes Slurm and
+MPI launch identity from its child environment, while keeping GPU
+visibility masks and runtime library paths. It rejects `mdrun` output
+reporting more than one MPI process per walker. See HPE's
+[MPI singleton documentation](https://cpe.ext.hpe.com/docs/latest/mpt/mpich/intro_mpi.html#mpi-singleton-support)
+for the supported standalone-launch model.
+
+**`Amber executable not found` for `pmemd.cuda` on Arrhenius.** The GH200
+build is not on a visible module: `GPU/Amber` offers no version, and its
+hidden module does not set `PATH`. Put the build on `PATH` in the batch
+script:
+
+```bash
+export AMBERHOME=/software/sse2/el9_gh200/easybuild/prefix/software/Amber/26.2-foss-2025b-pmemd
+export PATH=$AMBERHOME/bin:$PATH
+```
+
+**Amber forces differ from GROMACS or OpenMM on cholesterol, for an Amber
+topology converted from a CHARMM GROMACS topology with ParmEd.**
+`ChamberParm.from_structure` rebuilds the 1-4 Lennard-Jones table from
+per-type parameters. Some CHARMM `[ pairtypes ]` entries, including those
+of the cholesterol ring types CRL1 and CRL2, are not of that form. Compare
+single-point forces of the two topologies in OpenMM. Where they differ, set
+`LENNARD_JONES_14_ACOEF` and `LENNARD_JONES_14_BCOEF` from the GROMACS pair
+parameters of each type pair.
+
 ## Reporting a problem
 
 Include the output of `sumd-openmm --test` from a compute node, the

@@ -1,0 +1,8 @@
+[2026-11-07T02:24:17] GROMACS backend: GROMACS version:     2026.3-conda_forge; 64 atoms; device auto
+[2026-11-07T02:24:17] metric metric_1 (distance, supervise, decrease to -1): a = indices:0 -> 1 atom in ARG1; b = indices:2 -> 1 atom in ARG3; initial 13.13
+[2026-11-07T02:24:17] stage: SuMD production, 1 walker(s), up to 3 cycles of 0.006 ps
+[2026-11-07T02:24:17] CV1 = metric_1 (A)
+02:24:17  Cycle=1  AcceptedStep=1  Result=accepted      CV1=13.14 A (+0.00)
+02:24:17  Cycle=2  AcceptedStep=2  Result=accepted      CV1=13.14 A (+0.00)
+02:24:17  Cycle=3  AcceptedStep=3  Result=accepted      CV1=13.14 A (+0.00)
+[2026-11-07T02:24:17] finished: max_cycles; final AcceptedStep 3; 9 frames

@@ -5,6 +5,12 @@ keys produce a warning. Selection masks and targets have no defaults.
 
 ## Simulation setup
 
+`engine = openmm` is the default. `engine = gromacs` uses a native
+`gromacs_mdp`; `engine = amber` uses `amber_mdin` and an explicit
+`amber_executable`. `force_field = AMBER` with the default engine still
+means OpenMM reading an Amber topology. See [native backend settings and
+validation status](BACKENDS.md).
+
 The bundled MD_openmm setup handles Amber, CHARMM and GROMACS force fields.
 Its `force_field`, `topology_file`, `coordinate_file`, `toppar_file`,
 `gmx_include`, `dt`, `temp`, `fric_coeff`, `pcouple`, `p_type`,

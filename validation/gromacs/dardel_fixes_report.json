@@ -1,0 +1,765 @@
+{
+  "jobs": {
+    "backend_comparison": 27283831,
+    "eight_gpu_smoke": 27284350
+  },
+  "baseline_openmm": {
+    "version": "0.9.1",
+    "stop_reason": "max_cycles",
+    "final_traj": {
+      "file": "sumd_traj.dcd",
+      "windows": 1,
+      "frames": 10
+    }
+  },
+  "cpu": {
+    "gpu_requested": false,
+    "comparisons": {
+      "system": {
+        "same_public_files": true,
+        "files_only_left": [],
+        "files_only_right": [],
+        "same_csv_columns": true,
+        "same_json_keys": true,
+        "coordinate_shape": [
+          6,
+          3,
+          3
+        ],
+        "bit_identical_coordinates": false,
+        "max_coordinate_difference_A": 0.00003814697265625,
+        "final_potential_difference_kJmol": 5.282397737560451e-7,
+        "audits": [
+          {
+            "run": "openmm_system",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 1,
+            "retry_exhaustion_events": 0,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 9.97e-7,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 6.1983,
+                "max": 6.2008,
+                "sd": 0.0012662279942150792
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "gromacs_system",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 1,
+            "retry_exhaustion_events": 0,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 9.83e-7,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 6.1983,
+                "max": 6.2008,
+                "sd": 0.0012662279942150792
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "passed": true
+      },
+      "argon": {
+        "same_public_files": true,
+        "files_only_left": [],
+        "files_only_right": [],
+        "same_csv_columns": true,
+        "same_json_keys": true,
+        "coordinate_shape": [
+          6,
+          64,
+          3
+        ],
+        "bit_identical_coordinates": false,
+        "max_coordinate_difference_A": 0.000125885009765625,
+        "final_potential_difference_kJmol": 0.000007435018538615168,
+        "audits": [
+          {
+            "run": "openmm_argon",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000127,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1404,
+                "sd": 0.004250098038084794
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "gromacs_argon",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "passed": true
+      }
+    },
+    "commands": [
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "openmm_system.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_system.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "openmm_argon.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_argon.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_argon.inp",
+          "--extend",
+          "1"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_uninterrupted.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_retry_keep.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_retry_reassign.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      }
+    ],
+    "status": "completed",
+    "passed": true,
+    "continuation_bit_identical": true,
+    "keep_audit": {
+      "run": "gromacs_retry_keep",
+      "stop_reason": "converged",
+      "supervision": "single",
+      "walkers": 1,
+      "cycles": 1,
+      "windows_simulated": 1,
+      "accepted_windows": 1,
+      "acceptance_rate_per_cycle": 1,
+      "retry_exhaustion_events": 0,
+      "windows_per_rank": {
+        "0": 1
+      },
+      "start_modes": {
+        "continue": 1
+      },
+      "restores_checked": 0,
+      "max_abs_restore_dE_kJmol": null,
+      "windows_committed": 1,
+      "windows_discarded": 0,
+      "final_traj_frames": 3,
+      "final_traj_frames_expected": 3,
+      "final_traj_identical_to_path_windows": true,
+      "max_dcd_vs_state_mismatch_A": 0.00000139,
+      "retained_metrics": {
+        "metric_1": {
+          "min": 13.1319,
+          "max": 13.1362,
+          "sd": 0.0030405591591026048
+        }
+      },
+      "retained_states_by_cell": {}
+    },
+    "reassign_audit": {
+      "run": "gromacs_retry_reassign",
+      "stop_reason": "converged",
+      "supervision": "single",
+      "walkers": 2,
+      "cycles": 1,
+      "windows_simulated": 2,
+      "accepted_windows": 1,
+      "acceptance_rate_per_cycle": 1,
+      "retry_exhaustion_events": 0,
+      "windows_per_rank": {
+        "0": 2
+      },
+      "start_modes": {
+        "continue": 1,
+        "restore+reassign": 1
+      },
+      "restores_checked": 0,
+      "max_abs_restore_dE_kJmol": null,
+      "windows_committed": 1,
+      "windows_discarded": 1,
+      "final_traj_frames": 3,
+      "final_traj_frames_expected": 3,
+      "final_traj_identical_to_path_windows": true,
+      "max_dcd_vs_state_mismatch_A": 0.00000139,
+      "retained_metrics": {
+        "metric_1": {
+          "min": 13.1319,
+          "max": 13.1362,
+          "sd": 0.0030405591591026048
+        }
+      },
+      "retained_states_by_cell": {}
+    }
+  },
+  "gpu": {
+    "gpu_requested": true,
+    "comparisons": {
+      "argon": {
+        "same_public_files": true,
+        "files_only_left": [],
+        "files_only_right": [],
+        "same_csv_columns": true,
+        "same_json_keys": true,
+        "coordinate_shape": [
+          6,
+          64,
+          3
+        ],
+        "bit_identical_coordinates": true,
+        "max_coordinate_difference_A": 0,
+        "final_potential_difference_kJmol": 0.0000013851470939130195,
+        "audits": [
+          {
+            "run": "openmm_argon",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          },
+          {
+            "run": "gromacs_argon",
+            "stop_reason": "max_cycles",
+            "supervision": "single",
+            "walkers": 1,
+            "cycles": 2,
+            "windows_simulated": 2,
+            "accepted_windows": 2,
+            "acceptance_rate_per_cycle": 0,
+            "retry_exhaustion_events": 2,
+            "windows_per_rank": {
+              "0": 2
+            },
+            "start_modes": {
+              "continue": 2
+            },
+            "restores_checked": 0,
+            "max_abs_restore_dE_kJmol": null,
+            "windows_committed": 2,
+            "windows_discarded": 0,
+            "final_traj_frames": 6,
+            "final_traj_frames_expected": 6,
+            "final_traj_identical_to_path_windows": true,
+            "max_dcd_vs_state_mismatch_A": 0.00000139,
+            "retained_metrics": {
+              "metric_1": {
+                "min": 13.1319,
+                "max": 13.1405,
+                "sd": 0.0042999999999997485
+              }
+            },
+            "retained_states_by_cell": {}
+          }
+        ],
+        "passed": true
+      }
+    },
+    "commands": [
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "openmm_argon.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_argon.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_argon.inp",
+          "--extend",
+          "1"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_uninterrupted.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_retry_keep.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      },
+      {
+        "command": [
+          "/cfs/klemming/projects/supr/carlssonlab/midhun/apps/sumd-validation-20261107/venv/bin/python",
+          "-m",
+          "sumd_openmm",
+          "gromacs_retry_reassign.inp",
+          "--overwrite"
+        ],
+        "returncode": 0
+      }
+    ],
+    "status": "completed",
+    "passed": true,
+    "continuation_bit_identical": true,
+    "keep_audit": {
+      "run": "gromacs_retry_keep",
+      "stop_reason": "converged",
+      "supervision": "single",
+      "walkers": 1,
+      "cycles": 1,
+      "windows_simulated": 1,
+      "accepted_windows": 1,
+      "acceptance_rate_per_cycle": 1,
+      "retry_exhaustion_events": 0,
+      "windows_per_rank": {
+        "0": 1
+      },
+      "start_modes": {
+        "continue": 1
+      },
+      "restores_checked": 0,
+      "max_abs_restore_dE_kJmol": null,
+      "windows_committed": 1,
+      "windows_discarded": 0,
+      "final_traj_frames": 3,
+      "final_traj_frames_expected": 3,
+      "final_traj_identical_to_path_windows": true,
+      "max_dcd_vs_state_mismatch_A": 0.00000139,
+      "retained_metrics": {
+        "metric_1": {
+          "min": 13.1319,
+          "max": 13.1362,
+          "sd": 0.0030405591591026048
+        }
+      },
+      "retained_states_by_cell": {}
+    },
+    "reassign_audit": {
+      "run": "gromacs_retry_reassign",
+      "stop_reason": "converged",
+      "supervision": "single",
+      "walkers": 2,
+      "cycles": 1,
+      "windows_simulated": 2,
+      "accepted_windows": 1,
+      "acceptance_rate_per_cycle": 1,
+      "retry_exhaustion_events": 0,
+      "windows_per_rank": {
+        "0": 2
+      },
+      "start_modes": {
+        "continue": 1,
+        "restore+reassign": 1
+      },
+      "restores_checked": 0,
+      "max_abs_restore_dE_kJmol": null,
+      "windows_committed": 1,
+      "windows_discarded": 1,
+      "final_traj_frames": 3,
+      "final_traj_frames_expected": 3,
+      "final_traj_identical_to_path_windows": true,
+      "max_dcd_vs_state_mismatch_A": 0.00000139,
+      "retained_metrics": {
+        "metric_1": {
+          "min": 13.1319,
+          "max": 13.1362,
+          "sd": 0.0030405591591026048
+        }
+      },
+      "retained_states_by_cell": {}
+    }
+  },
+  "eight_gpu_status": "completed",
+  "eight_gpu": {
+    "audit": {
+      "run": "gromacs_gpu_output",
+      "stop_reason": "max_cycles",
+      "supervision": "single",
+      "walkers": 8,
+      "cycles": 3,
+      "windows_simulated": 24,
+      "accepted_windows": 3,
+      "acceptance_rate_per_cycle": 1,
+      "retry_exhaustion_events": 0,
+      "windows_per_rank": {
+        "0": 3,
+        "1": 3,
+        "2": 3,
+        "3": 3,
+        "4": 3,
+        "5": 3,
+        "6": 3,
+        "7": 3
+      },
+      "start_modes": {
+        "continue": 2,
+        "restore+keep": 22
+      },
+      "restores_checked": 0,
+      "max_abs_restore_dE_kJmol": null,
+      "windows_committed": 3,
+      "windows_discarded": 21,
+      "final_traj_frames": 60,
+      "final_traj_frames_expected": 60,
+      "final_traj_identical_to_path_windows": true,
+      "max_dcd_vs_state_mismatch_A": 0.00000611,
+      "retained_metrics": {
+        "tm3_tm6_dror": {
+          "min": 12.038,
+          "max": 12.2788,
+          "sd": 0.10577095930988482
+        },
+        "yy_Y210_Y304": {
+          "min": 4.4348,
+          "max": 5.0527,
+          "sd": 0.290738055071342
+        },
+        "pocket_D103_Y294_heavy": {
+          "min": 4.5936,
+          "max": 4.7959,
+          "sd": 0.09328037932312791
+        },
+        "ionic_lock_R121_E246": {
+          "min": 15.8735,
+          "max": 16.0018,
+          "sd": 0.054877591055001375
+        },
+        "na_D69_N300": {
+          "min": 2.6882,
+          "max": 2.8631,
+          "sd": 0.07957254551665424
+        },
+        "na_D69_S110": {
+          "min": 2.5805,
+          "max": 2.7058,
+          "sd": 0.05905607504736506
+        },
+        "toggle_W264_Y200": {
+          "min": 18.0312,
+          "max": 18.3345,
+          "sd": 0.133053732880116
+        },
+        "toggle_W264_G293": {
+          "min": 3.3316,
+          "max": 3.5292,
+          "sd": 0.10258964778832869
+        },
+        "npxxy_Y304_R121": {
+          "min": 6.3468,
+          "max": 6.6687,
+          "sd": 0.14515895884627095
+        },
+        "pif_I111_F260": {
+          "min": 9.335,
+          "max": 9.6338,
+          "sd": 0.1251370548638572
+        },
+        "chi1_W264": {
+          "min": -89.0833,
+          "max": -73.4617,
+          "sd": 6.942493815625619
+        },
+        "chi1_Y304": {
+          "min": -68.2884,
+          "max": -41.6724,
+          "sd": 10.900260366729777
+        }
+      },
+      "retained_states_by_cell": {}
+    },
+    "parallel": {
+      "mode": "mpi",
+      "ranks": 8,
+      "walkers": 8,
+      "layout": [
+        {
+          "rank": 0,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 1,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 2,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 3,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 4,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 5,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 6,
+          "host": "nid002825",
+          "device": "0"
+        },
+        {
+          "rank": 7,
+          "host": "nid002825",
+          "device": "0"
+        }
+      ]
+    },
+    "final_traj": {
+      "file": "sumd_traj.dcd",
+      "windows": 3,
+      "frames": 60
+    },
+    "continuations": [
+      {
+        "at": "2026-11-07T04:31:35",
+        "after_cycle": 2,
+        "previous_stop_reason": "max_cycles",
+        "max_cycles": 3,
+        "sumd_openmm_version": "0.9.1",
+        "integrator_seeds": [
+          335471879,
+          387495706,
+          1997028034,
+          1307868899,
+          1173624828,
+          1246041117,
+          1800451381,
+          1511270646
+        ]
+      }
+    ],
+    "backend_mpi_process_counts": {
+      "rank_000": [
+        1
+      ],
+      "rank_001": [
+        1
+      ],
+      "rank_002": [
+        1
+      ],
+      "rank_003": [
+        1
+      ],
+      "rank_004": [
+        1
+      ],
+      "rank_005": [
+        1
+      ],
+      "rank_006": [
+        1
+      ],
+      "rank_007": [
+        1
+      ]
+    },
+    "stop_reason": "max_cycles"
+  },
+  "module_stack": [
+    "PDC/26.03",
+    "gromacs/2026.1-gpu-cpe2603-rocm7.0.2"
+  ],
+  "gromacs_reported_version": "2026.1-dev"
+}

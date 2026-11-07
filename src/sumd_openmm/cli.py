@@ -18,7 +18,7 @@ import numpy as np
 from . import __version__, cv, dcdtools, energylog, selection
 from .charmmgui import CharmmGuiError
 from .config import _MD_KEYS, ConfigError, SumdConfig, read_key_value_file
-from .engine import Engine
+from .backend import create_backend, write_restart, OUTPUT_SCHEMA_VERSION
 from .executors import LocalExecutor, MPIExecutor, RankWorker, worker_loop
 from .metrics import supervised_series
 from .omm_setup import PlatformError, build_simulation, load_production_helpers
@@ -451,7 +451,8 @@ class SumdRun:
                     new_accepted_step=child if result is accepted else None, accepted=result is accepted,
                     best_in_batch=result is chosen, verdict=verdict if result is chosen else "not best",
                     reason=reason if result is chosen else None, action=action if result is chosen else None,
-                    seed_used=result["seed"], start_mode=result["start_mode"],
+                    seed_used=result["seed"], dynamics_seed=result.get("dynamics_seed"),
+                    start_mode=result["start_mode"],
                     restore_dE_kJmol=_finite(result["restore_dE"]),
                     retries_so_far=self.retries.get(batch_parent, 0),
                     wallclock_s=result["wall"], batch_wallclock_s=batch_wall,
@@ -739,7 +740,7 @@ CONTINUE_MAY_CHANGE = {"max_cycles", "max_retries_per_parent", "on_retry_exhaust
                        "log_stride", "energy_terms", "keep_rejected_dcd", "restore_check", "random_seed", "parallel",
                        "mpi_mode", "gpu_devices", "walkers", "output_dir"}
 TARGET_KEYS = ("target", "target_delta", "tolerance")
-MD_MAY_CHANGE = {"platform", "cuda_precision", "precision"}
+MD_MAY_CHANGE = {"platform", "cuda_precision", "precision", "gromacs_threads", "amber_threads"}
 
 
 def load_resume(outdir):
@@ -761,7 +762,7 @@ def check_continue(state, scfg):
     """
     old, new = state["sumd_config"], scfg.as_dict()
     changed = sorted(k for k in new if k not in CONTINUE_MAY_CHANGE | {"metrics"}
-                     and new[k] != old.get(k))
+                     and new[k] != old.get(k, "openmm" if k == "engine" else None))
     strip = lambda m: {k: v for k, v in m.items() if k not in TARGET_KEYS}
     if len(old["metrics"]) != len(new["metrics"]):
         changed.append("metric definitions")
@@ -898,23 +899,23 @@ def run(args, scfg, comm=None):
     if resume and scfg.walkers != resume["sumd_config"]["walkers"]:
         raise ConfigError("--continue: the run has %d walker(s), this launch %d"
                           % (resume["sumd_config"]["walkers"], scfg.walkers))
-    prod = load_production_helpers()
-    cfg = prod.read_key_value_file(args.input_file)
+    cfg = read_key_value_file(args.input_file)
     equilibrated = None
     if scfg.equilibration == "charmm-gui":
         cfg, equilibrated = equilibrate(args, scfg, cfg, comm, log, my_device, root)
     if resume:
         check_continue_md(resume, cfg)
-    topfile = prod.get_str(cfg, "topology_file", required=True)
+    topfile = cfg.get("topology_file")
+    if not topfile:
+        raise ConfigError("topology_file is required")
     base = os.path.dirname(os.path.abspath(args.input_file))
     evaluator, report = selection.resolve(scfg, topfile, base, log=log)
-    omm = build_simulation(prod, cfg, seeds[rank], log=log, device_index=my_device,
-                           energy_terms=scfg.energy_terms and scfg.energy_log_stride > 0)
+    engine = create_backend(cfg, scfg, seeds[rank], outdir, rank, my_device, log)
+    # Equilibration remains an OpenMM-only preparation stage.
     if root and equilibrated and equilibrated["format"] == "AMBER" and not args.dry_run:
-        equilibrated["rst7"] = prod.write_amber_restart(
-            omm.simulation, os.path.join(equilibrated["dir"], "equilibrated.rst7"),
-            netcdf=False, enforce_pbc=True)
-    engine = Engine(omm, log)
+        equilibrated["rst7"] = write_restart(
+            os.path.join(equilibrated["dir"], "equilibrated.rst7"), engine.packet(engine.snapshot()),
+            engine.periodic, engine.molecules() if engine.periodic else None)
     initial = engine.current_cvs(evaluator)
     if resume:
         # targets given as a change are measured from the original start
@@ -930,13 +931,13 @@ def run(args, scfg, comm=None):
                     log("WARNING: %s already satisfies its target" % spec.name)
         if scfg.supervision != "single" or scfg.walker_score == "dmscore":
             log("WARNING: " + SELECTION_BIAS)
-    sps = scfg.cv_sample_ps / omm.dt_ps
+    sps = scfg.cv_sample_ps / engine.dt_ps
     if abs(sps - round(sps)) > 1e-6:
         raise ConfigError("cv_sample_ps must be a multiple of dt")
     with open(args.input_file) as fh:
-        log_meta = dict(version=__version__, input=fh.read(), platform=omm.platform_name,
-                        host=socket.gethostname(), topology=topfile, coordinates=omm.crdfile,
-                        dt_ps=omm.dt_ps, temperature_K=omm.temperature_K,
+        log_meta = dict(version=__version__, input=fh.read(), platform=engine.platform_name,
+                        host=socket.gethostname(), topology=topfile, coordinates=engine.crdfile,
+                        dt_ps=engine.dt_ps, temperature_K=engine.temperature_K,
                         ntpr=int(round(sps)) * scfg.energy_log_stride)
     worker = RankWorker(engine, evaluator, outdir, scfg.samples_per_window, int(round(sps)),
                         scfg.dcd_stride, scfg.restore_check, rank=rank,
@@ -947,11 +948,12 @@ def run(args, scfg, comm=None):
             worker_loop(comm, worker)
         return
     summary = dict(input_file=os.path.abspath(args.input_file), sumd_openmm_version=__version__,
+                   output_schema_version=OUTPUT_SCHEMA_VERSION,
                    sumd_config=scfg.as_dict(), md_config=cfg, metrics=report,
                    parallel=dict(mode=scfg.parallel, ranks=size, walkers=scfg.walkers, layout=layout),
                    equilibration=equilibrated,
-                   engine=dict(dt_ps=omm.dt_ps, temperature_K=omm.temperature_K,
-                               platform=omm.platform_name, coordinate_file=omm.crdfile),
+                   engine=dict(name=engine.name, dt_ps=engine.dt_ps, temperature_K=engine.temperature_K,
+                               platform=engine.platform_name, coordinate_file=engine.crdfile),
                    seeds=dict(random_seed=scfg.random_seed, integrator=seeds),
                    warnings=[SELECTION_BIAS] if scfg.supervision != "single" or scfg.walker_score == "dmscore" else [])
     summary_path = os.path.join(outdir, "run_summary.json")
@@ -985,7 +987,7 @@ def run(args, scfg, comm=None):
         final = runner.last_saved()
         if final is not None:
             try:
-                _finish(outdir, runner, final, _early_stop_reason(exc), engine, omm, prod,
+                _finish(outdir, runner, final, _early_stop_reason(exc), engine,
                         summary, summary_path, log, partial=True)
             except Exception as salvage:
                 log("WARNING: could not write the partial result: %s" % salvage)
@@ -995,7 +997,7 @@ def run(args, scfg, comm=None):
         executor.shutdown()
         if previous is not None:
             signal.signal(signal.SIGTERM, previous)
-    _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summary_path, log)
+    _finish(outdir, runner, final, stop_reason, engine, summary, summary_path, log)
     log.close()
 
 
@@ -1027,7 +1029,7 @@ def _early_stop_reason(exc):
     return "error: %s: %s" % (type(exc).__name__, exc)
 
 
-def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summary_path, log,
+def _finish(outdir, runner, final, stop_reason, engine, summary, summary_path, log,
             partial=False):
     """sumd_traj.dcd, sumd_energy.log/.csv, final_state.xml/.rst7, final_path.txt and run_summary.json for `final`."""
     path = runner.path_to(final)
@@ -1057,9 +1059,9 @@ def _finish(outdir, runner, final, stop_reason, engine, omm, prod, summary, summ
         runner.write_check(final)
     rst7 = None
     try:
-        engine.restore(engine.load_xml(final_xml, last["step"], last["epot"]), check=False)
-        rst7 = prod.write_amber_restart(omm.simulation, os.path.join(outdir, "final_state.rst7"),
-                                         netcdf=False, enforce_pbc=True)
+        snap = engine.load_state(final_xml, last["step"], last["epot"])
+        rst7 = write_restart(os.path.join(outdir, "final_state.rst7"), engine.packet(snap), engine.periodic,
+                             engine.molecules() if engine.periodic else None)
     except Exception as exc:
         if not partial:
             raise

@@ -1,0 +1,228 @@
+{
+  "input_file": "/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_uninterrupted.inp",
+  "sumd_openmm_version": "0.9.1",
+  "output_schema_version": 2,
+  "sumd_config": {
+    "engine": "gromacs",
+    "metrics": [
+      {
+        "number": 1,
+        "name": "metric_1",
+        "type": "distance",
+        "role": "supervise",
+        "direction": "decrease",
+        "target": -1.0,
+        "tolerance": null,
+        "target_delta": null,
+        "a": "indices:0",
+        "b": "indices:2",
+        "c": null,
+        "d": null,
+        "fit": null,
+        "reference": null,
+        "reference_a": null,
+        "reference_fit": null,
+        "axis": null,
+        "signed": true,
+        "bins": null,
+        "weight": 1.0,
+        "mu": null,
+        "sigma": null,
+        "cutoff": 4.0,
+        "expect": {}
+      }
+    ],
+    "selection_syntax": "cpptraj",
+    "supervision": "single",
+    "seeding": "chain",
+    "stages": [],
+    "band_width": 1.0,
+    "pool_per_cell": 20,
+    "frontier_bands": 1,
+    "window_ps": 0.006,
+    "cv_sample_ps": 0.002,
+    "max_cycles": 3,
+    "max_retries_per_parent": 0,
+    "on_retry_exhaustion": "accept_best",
+    "retry_velocities": "keep",
+    "walker_acceptance": "always",
+    "require_significant_slope": false,
+    "slope_points": "all",
+    "random_seed": 42,
+    "walkers": 1,
+    "walker_score": "slope",
+    "parallel": "serial",
+    "mpi_mode": "multi_node",
+    "gpu_devices": "auto",
+    "method": "cMD",
+    "output_dir": "gromacs_uninterrupted",
+    "equilibration": "none",
+    "charmm_gui_dir": null,
+    "charmm_gui_format": "auto",
+    "equilibration_dir": "equilibration",
+    "dcd_stride": 1,
+    "log_stride": null,
+    "energy_terms": true,
+    "check_stride": 1,
+    "check_every": 10,
+    "keep_rejected_dcd": false,
+    "write_cv_samples": true,
+    "restore_check": true
+  },
+  "md_config": {
+    "engine": "gromacs",
+    "force_field": "GROMACS",
+    "topology_file": "argon.top",
+    "coordinate_file": "argon.gro",
+    "gromacs_mdp": "production.mdp",
+    "platform": "CPU",
+    "gromacs_threads": "1",
+    "dt": "0.0001",
+    "temp": "300",
+    "genvel": "no",
+    "window_ps": "0.006",
+    "cv_sample_ps": "0.002",
+    "max_cycles": "3",
+    "max_retries_per_parent": "0",
+    "retry_velocities": "keep",
+    "random_seed": "42",
+    "output_dir": "gromacs_uninterrupted",
+    "metric_1_type": "distance",
+    "metric_1_a": "indices:0",
+    "metric_1_b": "indices:2",
+    "metric_1_direction": "decrease",
+    "metric_1_target": "-1",
+    "check_stride": "1",
+    "metric_1_role": "supervise",
+    "gromacs_executable": "gmx"
+  },
+  "metrics": [
+    {
+      "number": 1,
+      "name": "metric_1",
+      "type": "distance",
+      "role": "supervise",
+      "direction": "decrease",
+      "target": -1.0,
+      "tolerance": null,
+      "target_delta": null,
+      "selections": {
+        "a": {
+          "expression": "indices:0",
+          "syntax": "indices",
+          "count": 1,
+          "residues": [
+            "ARG1"
+          ],
+          "atoms": [
+            "AR"
+          ]
+        },
+        "b": {
+          "expression": "indices:2",
+          "syntax": "indices",
+          "count": 1,
+          "residues": [
+            "ARG3"
+          ],
+          "atoms": [
+            "AR"
+          ]
+        }
+      },
+      "initial_value": 13.13192257259838
+    }
+  ],
+  "parallel": {
+    "mode": "serial",
+    "ranks": 1,
+    "walkers": 1,
+    "layout": null
+  },
+  "equilibration": null,
+  "engine": {
+    "name": "gromacs",
+    "dt_ps": 0.0001,
+    "temperature_K": 300.0,
+    "platform": "GROMACS CPU",
+    "coordinate_file": "/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro"
+  },
+  "seeds": {
+    "random_seed": 42,
+    "integrator": [
+      191664964
+    ]
+  },
+  "warnings": [],
+  "stop_reason": "max_cycles",
+  "final_accepted_step": 3,
+  "final_path": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "final_metrics": {
+    "metric_1": 13.144796149647245
+  },
+  "n_accepted_steps": 4,
+  "best_accepted_step": 0,
+  "best_metrics": {
+    "metric_1": 13.13192257259838
+  },
+  "final_traj": {
+    "file": "sumd_traj.dcd",
+    "windows": 3,
+    "frames": 9
+  },
+  "energy_log": {
+    "file": "sumd_energy.log",
+    "data": "sumd_energy.csv",
+    "rows": 9,
+    "columns": {
+      "Epot_kJmol": {
+        "mean": -14.624,
+        "std": 0.0003
+      },
+      "Ekin_kJmol": {
+        "mean": 3.4702,
+        "std": 0.0002
+      },
+      "Etot_kJmol": {
+        "mean": -11.1538,
+        "std": 0.0
+      },
+      "Temp_K": {
+        "mean": 4.4166,
+        "std": 0.0003
+      },
+      "Pressure_bar": {
+        "mean": -19.9757,
+        "std": 0.0003
+      },
+      "Volume_nm3": {
+        "mean": 21.952,
+        "std": 0.0
+      },
+      "Density_gmL": {
+        "mean": 0.1934,
+        "std": 0.0
+      },
+      "E_vdw": {
+        "mean": -14.624,
+        "std": 0.0003
+      },
+      "E_elec_direct": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "metric_1": {
+        "mean": 13.1391,
+        "std": 0.0037
+      }
+    }
+  },
+  "final_state_xml": "/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_uninterrupted/final_state.xml",
+  "final_state_rst7": "/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_uninterrupted/final_state.rst7",
+  "partial": false
+}

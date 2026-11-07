@@ -1,0 +1,18 @@
+{
+  "accepted_step": 1,
+  "cycle": 1,
+  "path": [
+    0,
+    1
+  ],
+  "windows": 1,
+  "frames": 3,
+  "check_stride": 1,
+  "check_every": 10,
+  "metrics": {
+    "metric_1": 13.136220696336638
+  },
+  "trajectory": "sumd_traj_stride1.dcd",
+  "state_xml": "latest_accepted_step.xml",
+  "written": "2026-11-07T02:24:18"
+}

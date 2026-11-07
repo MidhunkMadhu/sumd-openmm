@@ -1,0 +1,34 @@
+# This file was created Sat Nov  7 02:24:17 2026
+# Created by:
+#                :-) GROMACS - gmx energy, 2026.3-conda_forge (-:
+# 
+# Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+# Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+# Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+# Command line:
+#   gmx energy -f /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr -o energy.xvg -xvg xmgrace
+# gmx energy is part of G R O M A C S:
+#
+# S  C  A  M  O  R  G
+#
+@    title "GROMACS Energies"
+@    xaxis  label "Time (ps)"
+@    yaxis  label "(kJ/mol), (K), (bar)"
+@TYPE xy
+@ view 0.15, 0.15, 0.75, 0.85
+@ legend on
+@ legend box on
+@ legend loctype view
+@ legend 0.78, 0.8
+@ legend length 2
+@ s0 legend "LJ (SR)"
+@ s1 legend "Coulomb (SR)"
+@ s2 legend "Potential"
+@ s3 legend "Kinetic En."
+@ s4 legend "Total Energy"
+@ s5 legend "Temperature"
+@ s6 legend "Pressure"
+    0.000000  -14.624571    0.000000  -14.624571    3.470795  -11.153776    4.417361  -19.976326
+    0.002000  -14.624425    0.000000  -14.624425    3.470642  -11.153783    4.417167  -19.976179
+    0.004000  -14.624289    0.000000  -14.624289    3.470502  -11.153787    4.416989  -19.976034
+    0.006000  -14.624164    0.000000  -14.624164    3.470376  -11.153788    4.416828  -19.975904

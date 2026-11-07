@@ -1,0 +1,304 @@
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx --version
+                   :-) GROMACS - gmx, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx --version
+
+GROMACS version:     2026.3-conda_forge
+Precision:           mixed
+Memory model:        64 bit
+MPI library:         thread_mpi
+MPI version:         built in
+OpenMP support:      enabled (GMX_OPENMP_MAX_THREADS = 128)
+GPU support:         disabled
+SIMD instructions:   ARM_NEON_ASIMD
+CPU FFT library:     fftw-3.3.11
+GPU FFT library:     none
+Multi-GPU FFT:       none
+TNG support:         enabled
+Hwloc support:       disabled
+Tracing support:     disabled
+Colvars support:     enabled (version 2025-10-13)
+CP2K support:        disabled
+Torch support:       disabled
+Plumed support:      enabled
+C compiler:          /Users/runner/miniforge3/conda-bld/gromacs_1785262939206/_build_env/bin/arm64-apple-darwin20.0.0-clang Clang 19.1.7
+C compiler flags:    -Wno-missing-field-initializers -O3 -DNDEBUG
+C++ compiler:        /Users/runner/miniforge3/conda-bld/gromacs_1785262939206/_build_env/bin/arm64-apple-darwin20.0.0-clang++ Clang 19.1.7
+C++ compiler flags:  -Wno-reserved-identifier -Wno-missing-field-initializers -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-source-uses-openmp -Wno-c++17-extensions -Wno-documentation-unknown-command -Wno-covered-switch-default -Wno-switch-enum -Wno-switch-default -Wno-extra-semi-stmt -Wno-weak-vtables -Wno-shadow -Wno-padded -Wno-reserved-id-macro -Wno-double-promotion -Wno-exit-time-destructors -Wno-global-constructors -Wno-documentation -Wno-format-nonliteral -Wno-used-but-marked-unused -Wno-float-equal -Wno-conditional-uninitialized -Wno-conversion -Wno-disabled-macro-expansion -Wno-unused-macros -Wno-unsafe-buffer-usage -Wno-cast-function-type-strict SHELL:-fopenmp=libomp -O3 -DNDEBUG
+BLAS library:        External - detected on the system
+LAPACK library:      External - detected on the system
+
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx grompp -f window.mdp -p /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.top -c /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro -o window.tpr -po resolved.mdp
+                :-) GROMACS - gmx grompp, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx grompp -f window.mdp -p /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.top -c /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro -o window.tpr -po resolved.mdp
+
+Generating 1-4 interactions: fudge = 1
+Number of degrees of freedom in T-Coupling group rest is 189.00
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+NOTE 1 [file window.mdp]:
+  NVE simulation: will use the initial temperature of 4.417 K for
+  determining the Verlet buffer size
+
+
+There was 1 NOTE
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+Generated 1 of the 1 non-bonded parameter combinations
+
+Generated 1 of the 1 1-4 parameter combinations
+
+Excluding 0 bonded neighbours molecule type 'ARG'
+
+Taking velocities from '/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro'
+Analysing residue names:
+There are:    64    Protein residues
+Analysing Protein...
+
+Determining Verlet buffer for a tolerance of 0.005 kJ/mol/ps at 4.41737 K
+
+Calculated rlist for 1x1 atom pair-list as 1.000 nm, buffer size 0.000 nm
+
+Set rlist, assuming 4x4 atom pair-list, to 1.000 nm, buffer size 0.000 nm
+
+Note that mdrun will redetermine rlist based on the actual pair-list setup
+
+This run will generate roughly 0 Mb of data
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx mdrun -s window.tpr -deffnm window -ntomp 1 -ntmpi 1 -nb cpu -pme cpu -bonded cpu -update cpu
+                :-) GROMACS - gmx mdrun, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx mdrun -s window.tpr -deffnm window -ntomp 1 -ntmpi 1 -nb cpu -pme cpu -bonded cpu -update cpu
+
+Reading file window.tpr, VERSION 2026.3-conda_forge (single precision)
+Can not increase nstlist because an NVE ensemble is used
+Using 1 MPI thread
+Using 1 OpenMP thread 
+
+starting mdrun '64 argon atoms'
+0 steps,      0.0 ps.
+
+Writing final coordinates.
+
+               Core t (s)   Wall t (s)        (%)
+       Time:        0.000        0.001       95.8
+                 (ns/day)    (hour/ns)    (ms/step)  (Matom*steps/s) 
+Performance:       17.110        1.403        0.505            0.127 
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx energy -f /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr -o energy.xvg -xvg xmgrace
+                :-) GROMACS - gmx energy, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx energy -f /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr -o energy.xvg -xvg xmgrace
+
+Opened /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr as single precision energy file
+
+Select the terms you want from the following list by
+selecting either (part of) the name or the number or a combination.
+End your selection with an empty line or a zero.
+-------------------------------------------------------------------
+  1  LJ-(SR)          2  Coulomb-(SR)     3  Potential        4  Kinetic-En.   
+  5  Total-Energy     6  Temperature      7  Pressure         8  Vir-XX        
+  9  Vir-XY          10  Vir-XZ          11  Vir-YX          12  Vir-YY        
+ 13  Vir-YZ          14  Vir-ZX          15  Vir-ZY          16  Vir-ZZ        
+ 17  Pres-XX         18  Pres-XY         19  Pres-XZ         20  Pres-YX       
+ 21  Pres-YY         22  Pres-YZ         23  Pres-ZX         24  Pres-ZY       
+ 25  Pres-ZZ         26  #Surf*SurfTen   27  T-rest        
+
+String 'Volume' does not match anything
+String 'Density' does not match anything
+String 'Bond' does not match anything
+String 'G96Bond' does not match anything
+String 'Angle' does not match anything
+String 'U-B' does not match anything
+String 'Proper-Dih.' does not match anything
+String 'Ryckaert-Bell.' does not match anything
+String 'Improper-Dih.' does not match anything
+String 'CMAP' does not match anything
+String 'LJ-14' does not match anything
+String 'Disper.-corr.' does not match anything
+String 'Coulomb-14' does not match anything
+String 'Coul.-recip.' does not match anything
+
+Reading energy frame      0 time    0.000         
+Last energy frame read 0 time    0.000         
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+
+Statistics over 1 steps [ 0.0000 through 0.0000 ps ], 7 data sets
+All statistics are over 1 points
+
+Energy                      Average   Err.Est.       RMSD  Tot-Drift
+-------------------------------------------------------------------------------
+LJ (SR)                    -14.6246         --          0          0  (kJ/mol)
+Coulomb (SR)                      0         --          0          0  (kJ/mol)
+Potential                  -14.6246         --          0          0  (kJ/mol)
+Kinetic En.                 3.47079         --          0          0  (kJ/mol)
+Total Energy               -11.1538         --          0          0  (kJ/mol)
+Temperature                 4.41736         --          0          0  (K)
+Pressure                   -19.9763         --          0          0  (bar)
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx grompp -f window.mdp -p /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.top -c /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro -o window.tpr -po resolved.mdp -t parent.trr
+                :-) GROMACS - gmx grompp, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx grompp -f window.mdp -p /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.top -c /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro -o window.tpr -po resolved.mdp -t parent.trr
+
+Generating 1-4 interactions: fudge = 1
+Number of degrees of freedom in T-Coupling group rest is 189.00
+The integrator does not provide a ensemble temperature, there is no system ensemble temperature
+
+NOTE 1 [file window.mdp]:
+  NVE simulation: will use the initial temperature of 4.417 K for
+  determining the Verlet buffer size
+
+trr version: GMX_trn_file (double precision)
+
+Reading frame       0 time    0.000   
+Last frame          0 time    0.000   
+
+There was 1 NOTE
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+Generated 1 of the 1 non-bonded parameter combinations
+
+Generated 1 of the 1 1-4 parameter combinations
+
+Excluding 0 bonded neighbours molecule type 'ARG'
+
+Taking velocities from '/Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/argon.gro'
+Analysing residue names:
+There are:    64    Protein residues
+Analysing Protein...
+
+Determining Verlet buffer for a tolerance of 0.005 kJ/mol/ps at 4.41737 K
+
+Calculated rlist for 1x1 atom pair-list as 1.000 nm, buffer size 0.000 nm
+
+Set rlist, assuming 4x4 atom pair-list, to 1.000 nm, buffer size 0.000 nm
+
+Note that mdrun will redetermine rlist based on the actual pair-list setup
+
+Reading Coordinates, Velocities and Box size from old trajectory
+
+Will read whole trajectory
+
+Using frame at t = 0 ps
+
+Starting time for run is 0 ps
+
+This run will generate roughly 0 Mb of data
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx mdrun -s window.tpr -deffnm window -ntomp 1 -ntmpi 1 -nb cpu -pme cpu -bonded cpu -update cpu
+                :-) GROMACS - gmx mdrun, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx mdrun -s window.tpr -deffnm window -ntomp 1 -ntmpi 1 -nb cpu -pme cpu -bonded cpu -update cpu
+
+Reading file window.tpr, VERSION 2026.3-conda_forge (single precision)
+Can not increase nstlist because an NVE ensemble is used
+Using 1 MPI thread
+Using 1 OpenMP thread 
+
+starting mdrun '64 argon atoms'
+60 steps,      0.0 ps.
+
+Writing final coordinates.
+
+               Core t (s)   Wall t (s)        (%)
+       Time:        0.001        0.001       98.4
+                 (ns/day)    (hour/ns)    (ms/step)  (Matom*steps/s) 
+Performance:      473.051        0.051        0.018            3.504 
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+
+$ /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin/gmx energy -f /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr -o energy.xvg -xvg xmgrace
+                :-) GROMACS - gmx energy, 2026.3-conda_forge (-:
+
+Executable:   /Users/midhunkmadhu/miniforge3/envs/gmx2026/bin.ARM_NEON_ASIMD/gmx
+Data prefix:  /Users/midhunkmadhu/miniforge3/envs/gmx2026
+Working dir:  /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000
+Command line:
+  gmx energy -f /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr -o energy.xvg -xvg xmgrace
+
+Opened /Users/midhunkmadhu/Downloads/sumd-openmm/validation/gromacs/results/gromacs_retry_keep/engine_work/rank_000/window.edr as single precision energy file
+
+Select the terms you want from the following list by
+selecting either (part of) the name or the number or a combination.
+End your selection with an empty line or a zero.
+-------------------------------------------------------------------
+  1  LJ-(SR)          2  Coulomb-(SR)     3  Potential        4  Kinetic-En.   
+  5  Total-Energy     6  Temperature      7  Pressure         8  Vir-XX        
+  9  Vir-XY          10  Vir-XZ          11  Vir-YX          12  Vir-YY        
+ 13  Vir-YZ          14  Vir-ZX          15  Vir-ZY          16  Vir-ZZ        
+ 17  Pres-XX         18  Pres-XY         19  Pres-XZ         20  Pres-YX       
+ 21  Pres-YY         22  Pres-YZ         23  Pres-ZX         24  Pres-ZY       
+ 25  Pres-ZZ         26  #Surf*SurfTen   27  T-rest        
+
+String 'Volume' does not match anything
+String 'Density' does not match anything
+String 'Bond' does not match anything
+String 'G96Bond' does not match anything
+String 'Angle' does not match anything
+String 'U-B' does not match anything
+String 'Proper-Dih.' does not match anything
+String 'Ryckaert-Bell.' does not match anything
+String 'Improper-Dih.' does not match anything
+String 'CMAP' does not match anything
+String 'LJ-14' does not match anything
+String 'Disper.-corr.' does not match anything
+String 'Coulomb-14' does not match anything
+String 'Coul.-recip.' does not match anything
+
+Reading energy frame      0 time    0.000         
+Reading energy frame      1 time    0.002         
+Reading energy frame      2 time    0.004         
+Reading energy frame      3 time    0.006         
+Last energy frame read 3 time    0.006         
+
+GROMACS reminds you: "Calling a system 'non-linear' is like calling all wild animals 'non-elephants'." (Stan Ulam)
+
+
+Statistics over 61 steps [ 0.0000 through 0.0060 ps ], 7 data sets
+All statistics are over 61 points
+
+Energy                      Average   Err.Est.       RMSD  Tot-Drift
+-------------------------------------------------------------------------------
+LJ (SR)                    -14.6244         -- 0.000121146 0.00041261  (kJ/mol)
+Coulomb (SR)                      0         --          0          0  (kJ/mol)
+Potential                  -14.6244         -- 0.000121146 0.00041261  (kJ/mol)
+Kinetic En.                 3.47058         -- 0.000123118 -0.000419362  (kJ/mol)
+Total Energy               -11.1538         -- 2.41992e-06 -6.1838e-06  (kJ/mol)
+Temperature                 4.41708         -- 0.000156645 -0.000533519  (K)
+Pressure                   -19.9761         -- 0.000124435 0.000423962  (bar)
+

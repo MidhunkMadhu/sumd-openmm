@@ -40,6 +40,46 @@ Set `mpi_mode=multi_node`. For two nodes with four GPUs each, request
 implementation supplied by the cluster; mixing MPI implementations can
 hang collectives. Use a shared output path, not local node scratch.
 
+## GROMACS CPU cores per GPU
+
+GROMACS runs one independent engine process per controller rank. Allocate
+CPU cores to each rank and bind it to its GPU with Slurm; its child engine
+inherits that CPU affinity and GPU visibility mask. `gromacs_threads = auto`
+(also the default when omitted) uses `SLURM_CPUS_PER_TASK`, then
+`OMP_NUM_THREADS`, then one thread. An explicit integer overrides this
+choice, but cannot exceed the Slurm per-task CPU allocation. The selected
+count sets both GROMACS `-ntomp` and the child's `OMP_NUM_THREADS`.
+The thread count can change when continuing a run.
+
+[`examples/gromacs_dardel.slurm`](../examples/gromacs_dardel.slurm) requests
+eight GPU devices and eight physical CPU cores per walker, covering the
+node's 64 physical cores. `--hint=nomultithread` avoids counting its 128
+hardware threads as 128 physical cores. It uses the matching PDC 26.03
+GROMACS/ROCm stack. Submit from an environment containing the current
+package and mpi4py, or set `SUMD_PYTHON` to that environment's Python.
+
+```ini
+engine = gromacs
+parallel = mpi
+mpi_mode = multi_gpu
+walkers = auto
+gpu_devices = auto
+gromacs_threads = auto
+```
+
+For six GPU walkers with ten physical cores each, change the script's
+task and GPU counts to six and `--cpus-per-task` to ten. This allocates
+60 physical cores. Independent simulations can use separate exclusive
+`srun` steps and separate output directories; walkers within one mwSuMD
+simulation use one coordinated MPI step with disjoint per-task bindings.
+See [Slurm's binding and CPU allocation options](https://slurm.schedmd.com/srun.html).
+
+GROMACS thermostat noise uses a seed derived from `random_seed`, the cycle,
+and the walker index. This keeps stochastic walkers independent even when
+their initial coordinates and velocities are identical. The per-window
+`dynamics_seed` is recorded in `windows.jsonl`; velocity reassignment is
+controlled separately by `retry_velocities` and recorded as `seed_used`.
+
 ## AMD GPUs
 
 OpenMM 8.6.1 from conda-forge includes the HIP platform for AMD GPUs. It

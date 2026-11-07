@@ -252,6 +252,20 @@ def force_switch(prod, system, inputs):
     return vfswitch(system, None, inputs)
 
 
+def make_integrator(cfg, temperature, friction, dt, seed):
+    from openmm import LangevinIntegrator, VerletIntegrator
+    from openmm.unit import kelvin, picosecond, picoseconds
+    kind = cfg.get("integrator", "langevin").lower()
+    if kind == "verlet":
+        return VerletIntegrator(dt * picoseconds)
+    if kind != "langevin":
+        from .config import ConfigError
+        raise ConfigError("integrator must be langevin or verlet")
+    integrator = LangevinIntegrator(temperature * kelvin, friction / picosecond, dt * picoseconds)
+    integrator.setRandomNumberSeed(int(seed))
+    return integrator
+
+
 def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=None, energy_terms=False):
     """Build a Simulation from a serialized OpenMM System and a structure."""
     from types import SimpleNamespace
@@ -270,8 +284,7 @@ def build_xml_simulation(prod, cfg, integrator_seed, log=print, device_index=Non
     temperature = float(cfg.get("temp", 300))
     friction = float(cfg.get("fric_coeff", 1))
     dt = float(cfg.get("dt", 0.002))
-    integrator = LangevinIntegrator(temperature * kelvin, friction / picosecond, dt * picoseconds)
-    integrator.setRandomNumberSeed(int(integrator_seed))
+    integrator = make_integrator(cfg, temperature, friction, dt, integrator_seed)
     requested = cfg.get("platform", "CUDA")
     name = choose_platform(requested, available_platforms(), log, check=platform_problem)
     platform = Platform.getPlatformByName(name)
@@ -324,6 +337,20 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None, e
     fftype, platform_name, start_info, temperature_K, dt_ps and the file
     names, for the run summary.
     """
+    from .backend import is_portable_state, read_state
+    coordinate = cfg.get("coordinate_file", "")
+    if coordinate.lower().endswith(".xml") and is_portable_state(coordinate):
+        import tempfile
+        packet = read_state(coordinate)
+        if packet["engine"] != "openmm":
+            raise ValueError("use final_state.rst7 to import a different engine's coordinates")
+        with tempfile.NamedTemporaryFile(suffix=".xml") as fh:
+            fh.write(packet["native"])
+            fh.flush()
+            result = build_simulation(prod, dict(cfg, coordinate_file=fh.name), integrator_seed,
+                                      log, device_index, energy_terms)
+        result.crdfile = coordinate
+        return result
     if cfg.get("force_field", "AMBER").upper() == "OPENMM_XML":
         return build_xml_simulation(prod, cfg, integrator_seed, log, device_index, energy_terms)
 
@@ -461,9 +488,7 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None, e
             "restraints would change the Hamiltonian.")
 
     # ---------------------------------------------- integrator and platform
-    integrator = LangevinIntegrator(inputs.temp * kelvin, inputs.fric_coeff / picosecond,
-                                    inputs.dt * picoseconds)
-    integrator.setRandomNumberSeed(int(integrator_seed))
+    integrator = make_integrator(cfg, inputs.temp, inputs.fric_coeff, inputs.dt, integrator_seed)
 
     platform_name = choose_platform(platform_request, available_platforms(), log,
                                     check=platform_problem)
@@ -480,6 +505,15 @@ def build_simulation(prod, cfg, integrator_seed, log=print, device_index=None, e
     if genvel:
         log("Generating velocities from temperature: %s K" % inputs.temp)
         simulation.context.setVelocitiesToTemperature(inputs.temp * kelvin, int(integrator_seed))
+    elif start_info["kind"] == "gromacs_gro":
+        # OpenMM's GRO reader drops the optional velocity fields. ParmEd reads
+        # them in Angstrom/ps; preserve them when comparing or continuing engines.
+        import parmed
+        from openmm.unit import angstrom
+        velocities = parmed.load_file(crdfile, skip_bonds=True).velocities
+        if velocities is None:
+            raise ValueError("genvel = no requires velocities in coordinate_file")
+        simulation.context.setVelocities(velocities * angstrom / picosecond)
     elif start_info["kind"] in ("openmm_xml_state", "openmm_checkpoint"):
         if not start_info["has_velocities"]:
             sys.exit("genvel = no was requested, but coordinate_file has no velocities:\n%s" % crdfile)
